@@ -1,5 +1,10 @@
 import { IAutoBeTypeScriptCompileResult } from "../compiler";
-import { AutoBeTestFile } from "../histories";
+import {
+  AutoBeTestWriteAuthorizationFunction,
+  AutoBeTestWriteFunction,
+  AutoBeTestWriteGenerationFunction,
+  AutoBeTestWritePrepareFunction,
+} from "../histories";
 import { AutoBeAggregateEventBase } from "./base/AutoBeAggregateEventBase";
 import { AutoBeEventBase } from "./base/AutoBeEventBase";
 
@@ -25,21 +30,31 @@ export interface AutoBeTestCorrectEvent
   kind: "casting" | "overall" | "request";
 
   /**
-   * The test file that contained compilation errors with its detailed scenario
-   * metadata.
+   * Function type indicating the specific test writing operation performed.
    *
-   * Contains the structured test file object that failed compilation before
-   * correction. The file includes its location, problematic source code
-   * content, and associated scenario information that provides context for
-   * understanding the compilation issues. This file serves as a comprehensive
-   * baseline for measuring the effectiveness of the correction process.
+   * This discriminated union represents different stages and types of test code
+   * generation that occur during the test writing process:
    *
-   * Unlike simple key-value pairs, this structure preserves the rich metadata
-   * about the test scenario, enabling better analysis of what specific test
-   * patterns or business logic implementations led to compilation failures and
-   * how they can be systematically improved.
+   * - `AutoBeTestWritePrepareFunction`: Generates test data preparation functions
+   *   that create mock DTO objects required by API endpoints
+   * - `AutoBeTestWriteGenerationFunction`: Creates resource generation functions
+   *   that produce test data and utilities needed by test scenarios
+   * - `AutoBeTestWriteAuthorizationFunction`: Implements authentication and
+   *   authorization functions for different actors (login, signup, token
+   *   refresh)
+   * - `AutoBeTestWriteFunction`: Writes the actual E2E test scenario files with
+   *   complete test implementations
+   *
+   * Each function type serves a specific purpose in building comprehensive test
+   * suites, from data preparation through authentication to actual scenario
+   * validation. The discriminated union pattern enables type-safe handling of
+   * different test writing stages while providing detailed progress tracking.
    */
-  file: AutoBeTestFile;
+  function:
+    | AutoBeTestWritePrepareFunction
+    | AutoBeTestWriteGenerationFunction
+    | AutoBeTestWriteAuthorizationFunction
+    | AutoBeTestWriteFunction;
 
   /**
    * The compilation failure details that triggered the correction process.
@@ -70,47 +85,6 @@ export interface AutoBeTestCorrectEvent
    * develop systematic solutions.
    */
   think: string;
-
-  /**
-   * The first corrected version of the test code addressing compilation errors.
-   *
-   * Contains the AI's initial attempt to fix the compilation issues while
-   * preserving the original business logic and test workflow. This draft
-   * represents the direct application of error correction strategies identified
-   * during the analysis phase.
-   *
-   * The draft code demonstrates the AI's approach to resolving TypeScript
-   * compilation errors while maintaining the intended test functionality and
-   * following established conventions.
-   */
-  draft: string;
-
-  /**
-   * AI's comprehensive review and validation of the corrected draft code.
-   *
-   * Contains the AI's evaluation of the draft implementation, examining both
-   * technical correctness and business logic preservation. This review process
-   * identifies any remaining issues and validates that compilation errors have
-   * been properly resolved.
-   *
-   * The review provides insight into the AI's quality assurance process and
-   * helps stakeholders understand how the correction maintains test integrity.
-   */
-  review?: string;
-
-  /**
-   * The final production-ready corrected test code.
-   *
-   * Contains the polished version of the corrected test code that incorporates
-   * all review feedback and validation results. This represents the completed
-   * error correction process, guaranteed to compile successfully while
-   * preserving all original test functionality.
-   *
-   * The final implementation serves as the definitive solution that replaces
-   * the compilation-failed code and demonstrates the AI's ability to learn from
-   * errors and produce high-quality test code.
-   */
-  final?: string;
 
   /**
    * Iteration number of the requirements analysis this test correction was
