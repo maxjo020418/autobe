@@ -192,12 +192,10 @@ function getEventDetails(
               <span style={valueStyle}>Step {testEvent.step}</span>
             </div>
 
-            {testEvent.file?.location && (
-              <div style={infoItemStyle}>
-                <span style={labelStyle}>Test File:</span>
-                <span style={valueStyle}>{testEvent.file.location}</span>
-              </div>
-            )}
+            <div style={infoItemStyle}>
+              <span style={labelStyle}>Test File:</span>
+              <span style={valueStyle}>{testEvent.function.location}</span>
+            </div>
 
             {testEvent.think && (
               <div>
@@ -206,10 +204,10 @@ function getEventDetails(
               </div>
             )}
 
-            {testEvent.review && (
+            {testEvent.function.kind === "write" && (
               <div>
                 <div style={labelStyle}>📋 Review Results:</div>
-                <div style={codeBlockStyle}>{testEvent.review}</div>
+                <div style={codeBlockStyle}>{testEvent.function.review}</div>
               </div>
             )}
 
