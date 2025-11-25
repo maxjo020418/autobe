@@ -99,19 +99,21 @@ const correct = async <Model extends ILlmSchema.Model>(
     kind: "request",
     id: v7(),
     created_at: new Date().toISOString(),
-    file: {
-      scenario: write.scenario,
-      location: write.location,
+    function: {
+      kind: "write",
       content: write.script,
+      domain: "",
+      draft: pointer.value.draft,
+      functionName: write.scenario.functionName,
+      location: write.location,
+      scenario: write.scenario,
+      review: pointer.value.revise?.review,
     },
     result: event.result,
     metric,
     tokenUsage,
     step: ctx.state().analyze?.step ?? 0,
     think: pointer.value.think,
-    draft: pointer.value.draft,
-    review: pointer.value.revise?.review,
-    final: pointer.value.revise?.final ?? undefined,
   } satisfies AutoBeTestCorrectEvent);
   const newWrite: IAutoBeTestFunction = {
     artifacts: write.artifacts,
