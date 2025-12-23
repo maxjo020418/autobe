@@ -11,6 +11,7 @@ typia = "typia"
 criterias = "criterias"
 Jeongho = "Jeongho"
 Nam = "Nam"
+IIFE = "IIFE"
 
 [files]
 extend-exclude = [
