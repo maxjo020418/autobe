@@ -1,0 +1,116 @@
+{
+  "thinking": "Review provided API operations to check for security, schema alignment, logic consistency, and path parameter usage. Operations cover Proxmox tasks listing and detail retrieval for user and admin actors. Detailed Prisma schema for proxmox_paywall_proxmox_tasks is loaded to verify fields and types.",
+  "request": {
+    "type": "complete",
+    "think": {
+      "review": "1. Security: Operations enforce authorization actors correctly (user/admin), no sensitive data exposed in response descriptions, no login/join or refresh auth types as expected.n2. Prisma Schema Alignment: All operations reference proxmox_paywall_proxmox_tasks model, path parameters match UUID field for at operations, request/response bodies use consistent types.n3. Semantic Consistency: PATCH method used reasonably for index operations with complex search/filtering, GET methods correctly for single entity retrieval.n4. Path/Params: Parameters are well-defined and used, no unused or ambiguous parameters.n5. Naming and Uniqueness: Operation names 'index' for list and 'at' for single are standard and accessor uniqueness maintained by actor differentiation in path.n6. Authorization Consistency: authorizationActor and authorizationActors set appropriately.nnNo critical or high issues found. No improvements required. All operations meet AutoBE standards.",
+      "plan": "No improvements required. All operations comply with security, Prisma schema alignment, and semantic rules."
+    },
+    "content": [
+      {
+        "path": "/proxmoxPaywall/user/proxmox-tasks",
+        "method": "patch",
+        "description": "Retrieve a filtered and paginated list of Proxmox tasks from the system. This operation allows authenticated users to query and monitor various background tasks related to Proxmox VE operations.nnThe operation supports complex search, sorting, and pagination options, enabling efficient filtering of tasks by status, creation time, and task type.nnSecurity: Access is restricted to authenticated users who have permission to view Proxmox task statuses and logs. All task data corresponds directly to Proxmox internal task tracking mechanisms, providing real-time operational insight.nnThis operation integrates with the proxmox_paywall_proxmox_tasks Prisma model, reflecting the current schema design and field definitions.",
+        "parameters": [],
+        "requestBody": {
+          "description": "Search filter and pagination parameters for Proxmox task list retrieval",
+          "typeName": "IProxmoxPaywallProxmoxTask.IRequest"
+        },
+        "responseBody": {
+          "description": "Paginated list of Proxmox task summaries matching the search criteria",
+          "typeName": "IPageIProxmoxPaywallProxmoxTask.ISummary"
+        },
+        "authorizationActors": [
+          "user",
+          "admin"
+        ],
+        "name": "index",
+        "authorizationType": null,
+        "authorizationActor": "user",
+        "prerequisites": []
+      },
+      {
+        "path": "/proxmoxPaywall/admin/proxmox-tasks",
+        "method": "patch",
+        "description": "Retrieve a filtered and paginated list of Proxmox tasks from the system. This operation allows authenticated users to query and monitor various background tasks related to Proxmox VE operations.nnThe operation supports complex search, sorting, and pagination options, enabling efficient filtering of tasks by status, creation time, and task type.nnSecurity: Access is restricted to authenticated users who have permission to view Proxmox task statuses and logs. All task data corresponds directly to Proxmox internal task tracking mechanisms, providing real-time operational insight.nnThis operation integrates with the proxmox_paywall_proxmox_tasks Prisma model, reflecting the current schema design and field definitions.",
+        "parameters": [],
+        "requestBody": {
+          "description": "Search filter and pagination parameters for Proxmox task list retrieval",
+          "typeName": "IProxmoxPaywallProxmoxTask.IRequest"
+        },
+        "responseBody": {
+          "description": "Paginated list of Proxmox task summaries matching the search criteria",
+          "typeName": "IPageIProxmoxPaywallProxmoxTask.ISummary"
+        },
+        "authorizationActors": [
+          "user",
+          "admin"
+        ],
+        "name": "index",
+        "authorizationType": null,
+        "authorizationActor": "admin",
+        "prerequisites": []
+      },
+      {
+        "path": "/proxmoxPaywall/user/proxmox-tasks/{proxmoxTaskId}",
+        "method": "get",
+        "description": "Retrieve detailed information and status of a specific Proxmox task by its ID.nnThis read-only operation provides comprehensive details including task progress, status, errors, and related metadata.nnSecurity: Access restricted to authenticated users authorized to view task details.nnThis operation is directly mapped to the proxmox_paywall_proxmox_tasks Prisma model and uses the ID as the unique identifier for fetching the task record.",
+        "parameters": [
+          {
+            "name": "proxmoxTaskId",
+            "description": "Unique identifier of the Proxmox task",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "required": true
+          }
+        ],
+        "requestBody": null,
+        "responseBody": {
+          "description": "Detailed information of the specified Proxmox task",
+          "typeName": "IProxmoxPaywallProxmoxTask"
+        },
+        "authorizationActors": [
+          "user",
+          "admin"
+        ],
+        "name": "at",
+        "authorizationType": null,
+        "authorizationActor": "user",
+        "prerequisites": []
+      },
+      {
+        "path": "/proxmoxPaywall/admin/proxmox-tasks/{proxmoxTaskId}",
+        "method": "get",
+        "description": "Retrieve detailed information and status of a specific Proxmox task by its ID.nnThis read-only operation provides comprehensive details including task progress, status, errors, and related metadata.nnSecurity: Access restricted to authenticated users authorized to view task details.nnThis operation is directly mapped to the proxmox_paywall_proxmox_tasks Prisma model and uses the ID as the unique identifier for fetching the task record.",
+        "parameters": [
+          {
+            "name": "proxmoxTaskId",
+            "description": "Unique identifier of the Proxmox task",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "required": true
+          }
+        ],
+        "requestBody": null,
+        "responseBody": {
+          "description": "Detailed information of the specified Proxmox task",
+          "typeName": "IProxmoxPaywallProxmoxTask"
+        },
+        "authorizationActors": [
+          "user",
+          "admin"
+        ],
+        "name": "at",
+        "authorizationType": null,
+        "authorizationActor": "admin",
+        "prerequisites": []
+      }
+    ]
+  }
+}

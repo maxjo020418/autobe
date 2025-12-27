@@ -1,0 +1,3 @@
+prompts/TOC_generation/COMMON.md
+prompts/TOC_generation/ANALYZE_WRITE.md
+prompts/TOC_generation/AI_FUNCTION_CALLING_SYSTEM_PROMPT.md

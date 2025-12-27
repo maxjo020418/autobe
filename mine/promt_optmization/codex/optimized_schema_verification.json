@@ -1,0 +1,652 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "<!-- filename: COMMON.md -->\n # autobe agent\n\n role: autobe backend agent (typescript, nestjs, prisma). produce production-ready, type-safe outputs.\n language: talk to the user in en; write code/docs/comments in english.\n time: asia/seoul, 2025-12-25T09:09:24.588Z."
+    },
+    {
+      "role": "system",
+      "content": "<!-- filename: INTERFACE_OPERATION.md -->\n # api operation generator\n\n you generate `IAutoBeInterfaceOperationApplication.IProps.operations` from provided requirements + prisma schemas.\n\n <inputs>\n - use already-loaded conversation data first.\n - if required info is missing, call `process()` to request it (analysis files, prisma schemas, previous ops).\n - do not guess fields, relations, validation rules, or auth requirements; request the source instead.\n </inputs>\n\n <output>\n - always call `process({ thinking, request: { type: \"complete\", operations } })`.\n - every operation must include all required fields; no undefined required fields.\n </output>\n\n <operation schema (minimal)>\n ```typescript\n export namespace IAutoBeInterfaceOperationApplication {\n export interface IProps { operations: IOperation[] }\n interface IOperation {\n path: string\n method: string\n name: \"index\"|\"at\"|\"search\"|\"create\"|\"update\"|\"erase\"\n description: string\n parameters?: Array<unknown>\n requestBody?: unknown\n responseBody?: unknown\n authorizationActors: string[]\n authorizationType: \"login\"|\"join\"|\"refresh\"|null\n authorizationActor: string|null\n prerequisites: Array<unknown>\n }\n }\n ```\n </operation schema>\n\n <rules>\n - method/name mapping: get=list/index|search or single=at; post=create; put/patch=update; delete=erase.\n - paths: keep consistent, stable, and REST-like; path params must be used and named consistently.\n - descriptions: 2+ short paragraphs covering purpose, auth, inputs (params/body), outputs, and key business rules/errors.\n - authorization:\n - set `authorizationType`/`authorizationActor`/`authorizationActors` consistently; keep actor ids in camelCase.\n - exclude user/session auth endpoints unless requirements explicitly say otherwise (handled by dedicated auth system).\n - data:\n - exclude purely system-generated/audit/log/metric endpoints unless explicitly required.\n - do not invent dto fields; align request/response bodies with prisma schemas and loaded requirements.\n - uniqueness: accessor (non-param path segments + operation name) must be globally unique; adjust paths/ops to avoid conflicts.\n - be conservative: prefer fewer, correct operations over speculative coverage.\n </rules>"
+    },
+    {
+      "role": "assistant",
+      "content": "<!--\nfilename: PRELIMINARY_ANALYSIS_FILE_LOADED.md\n-->\n# Loaded Analysis Documents\n\nThe following requirement analysis documents have been loaded into your context through previous `process()` calls with `type: \"getAnalysisFiles\"`.\n\n\n\nThese materials are now available for you to reference. Use them to understand user requirements, business logic, and feature specifications when designing your solution.\n\n> **Note**: These documents are already in your conversation history. Reference them directly without calling `process()` again for the same files.\n\n## Project Prefix\n\nThe project prefix is a short identifier used consistently across all generated artifacts including database table names, API function names, and DTO type names. For example, if the prefix is \"shopping\", tables might be named `shopping_customers` and DTOs might be named `IShoppingCartCommodity`.\n\nproxmoxPaywall\n\n## Actors\n\nActors represent the different user types and roles that interact with the system. Each actor has a specific permission level (guest, member, or admin) that determines their access to various API endpoints and system features. Use these actor definitions to understand authorization requirements and user-specific functionality.\n\n```json\n[{\"name\":\"admin\",\"kind\":\"admin\",\"description\":\"System administrators with full control over user management, lease provisioning, container lifecycle management, and system settings.\"},{\"name\":\"user\",\"kind\":\"member\",\"description\":\"Authenticated users who lease containers and manage their own leases, including viewing container specs and lease status.\"}]\n```\n\n## Analysis Files\n\n```json\n{}\n```"
+    },
+    {
+      "role": "system",
+      "content": "<!-- filename: PRELIMINARY_ANALYSIS_FILE.md -->\n # preliminary loading rules (analysis files)\n\n - do not request already-loaded analysis files.\n - only request files listed under \"not yet loaded\".\n - if you need requirements/validation details, request the specific file(s); do not infer from filenames.\n\n not yet loaded (available on request):\n ```json\n [{\"filename\":\"00-toc.md\",\"documentType\":\"toc\",\"outline\":[\"Service Overview\",\"User Actors and Authentication\",\"Functional Requirements\",\"Business Rules and Validation\",\"User Scenarios\",\"Error Handling and Recovery\",\"Performance Requirements\",\"Security and Compliance\",\"External Integrations and API\",\"Data Flow and Lifecycle\"]},{\"filename\":\"01-service-overview.md\",\"documentType\":\"service-overview\",\"outline\":[\"Business Model\",\"Project Purpose\",\"Core Features\",\"Success Criteria\"]},{\"filename\":\"02-user-actors.md\",\"documentType\":\"user-story\",\"outline\":[\"Authentication Flow Requirements\",\"User Actor Descriptions and Permissions\",\"Token Management\",\"Permission Matrix\"]},{\"filename\":\"03-functional-requirements.md\",\"documentType\":\"requirement\",\"outline\":[\"Lease Provisioning\",\"Lease Renewal\",\"Container Management\",\"Access Control\",\"API Functionalities\"]},{\"filename\":\"04-business-rules.md\",\"documentType\":\"requirement\",\"outline\":[\"Lease Validity and Expiration\",\"Resource Allocation Constraints\",\"Access Denial Policies\",\"Renewal Conditions\"]},{\"filename\":\"05-user-scenarios.md\",\"documentType\":\"user-flow\",\"outline\":[\"Lease Acquisition Flow\",\"Lease Renewal Flow\",\"Access Expiry Flow\",\"Error Handling Scenarios\"]},{\"filename\":\"06-error-handling.md\",\"documentType\":\"requirement\",\"outline\":[\"Authentication Failure\",\"Expired Lease Handling\",\"Container Access Denial\",\"System Errors\"]},{\"filename\":\"07-performance-requirements.md\",\"documentType\":\"requirement\",\"outline\":[\"Response Time Expectations\",\"Scalability and Load Handling\",\"Availability Requirements\"]},{\"filename\":\"08-security-compliance.md\",\"documentType\":\"requirement\",\"outline\":[\"Authentication Security\",\"Access Control\",\"Data Privacy\",\"Compliance and Audit\"]},{\"filename\":\"09-external-integrations.md\",\"documentType\":\"requirement\",\"outline\":[\"Proxmox VE API Interaction\",\"Payment Protocol Roadmap\",\"API Token Management\"]},{\"filename\":\"10-data-flow.md\",\"documentType\":\"requirement\",\"outline\":[\"Authentication Data Flow\",\"Lease Management Flow\",\"Container Lifecycle Flow\",\"System Event Handling\"]}]\n ```"
+    },
+    {
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "type": "function",
+          "id": "019b54c5-23ec-7764-b50c-66e5a0e7ffb1",
+          "function": {
+            "name": "process",
+            "arguments": "{\"thinking\":\"prisma schemas for DB schema information\",\"request\":{\"type\":\"getPrismaSchemas\",\"schemaNames\":[\"proxmox_paywall_proxmox_tasks\"]}}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "019b54c5-23ec-7764-b50c-66e5a0e7ffb1",
+      "content": "{\"function\":{\"protocol\":\"class\",\"description\":\"Process operation review task or preliminary data requests.\\n\\nAnalyzes operations for security vulnerabilities, schema compliance,\\nlogical consistency, and standard adherence. Outputs structured thinking\\nprocess and production-ready operations.\",\"parameters\":{\"description\":\" Request containing either preliminary data request or complete\\ntask\\n\\n------------------------------\\n\\nCurrent Type: {@link IAutoBeInterfaceOperationReviewApplication.IProps}\",\"type\":\"object\",\"properties\":{\"thinking\":{\"description\":\"Think before you act.\\n\\nBefore requesting preliminary data or completing your task, reflect on\\nyour current state and explain your reasoning:\\n\\nFor preliminary requests (getAnalysisFiles, getPrismaSchemas, etc.):\\n\\n- What critical information is missing that you don't already have?\\n- Why do you need it specifically right now?\\n- Be brief - state the gap, don't list everything you have.\\n\\nFor completion (complete):\\n\\n- What key assets did you acquire?\\n- What did you accomplish?\\n- Why is it sufficient to complete?\\n- Summarize - don't enumerate every single item.\\n\\nThis reflection helps you avoid duplicate requests and premature\\ncompletion.\",\"type\":\"string\"},\"request\":{\"description\":\"Type discriminator for the request.\\n\\nDetermines which action to perform: preliminary data retrieval\\n(getAnalysisFiles, getPrismaSchemas) or final operation review\\n(complete). When preliminary returns empty array, that type is removed\\nfrom the union, physically preventing repeated calls.\",\"anyOf\":[{\"$ref\":\"#/$defs/IAutoBePreliminaryGetPreviousAnalysisFiles\"},{\"$ref\":\"#/$defs/IAutoBePreliminaryGetAnalysisFiles\"},{\"$ref\":\"#/$defs/IAutoBePreliminaryGetPreviousPrismaSchemas\"},{\"$ref\":\"#/$defs/IAutoBePreliminaryGetPrismaSchemas\"},{\"$ref\":\"#/$defs/IAutoBePreliminaryGetPreviousInterfaceOperations\"},{\"$ref\":\"#/$defs/IAutoBeInterfaceOperationReviewApplication.IComplete\"}],\"x-discriminator\":{\"propertyName\":\"type\",\"mapping\":{\"getPreviousAnalysisFiles\":\"#/$defs/IAutoBePreliminaryGetPreviousAnalysisFiles\",\"getAnalysisFiles\":\"#/$defs/IAutoBePreliminaryGetAnalysisFiles\",\"getPreviousPrismaSchemas\":\"#/$defs/IAutoBePreliminaryGetPreviousPrismaSchemas\",\"getPrismaSchemas\":\"#/$defs/IAutoBePreliminaryGetPrismaSchemas\",\"getPreviousInterfaceOperations\":\"#/$defs/IAutoBePreliminaryGetPreviousInterfaceOperations\",\"complete\":\"#/$defs/IAutoBeInterfaceOperationReviewApplication.IComplete\"}}}},\"required\":[\"thinking\",\"request\"],\"additionalProperties\":false,\"$defs\":{\"IAutoBePreliminaryGetPreviousAnalysisFiles\":{\"description\":\"Request to retrieve analysis files from a previous version.\\n\\nThis type is used to load analysis files (requirements documents) that were\\ngenerated in a **previous version** of the AutoBE generation pipeline.\\nThis is NOT about re-requesting files within the same execution, but rather\\naccessing artifacts from an earlier version.\\n\\n**Use Case:** When regenerating or modifying the backend application based on\\nuser change requests, agents need to reference the previously generated\\nanalysis files to understand what was created before and what needs to be\\nmodified.\\n\\n**Key Difference from `getAnalysisFiles`:**\\n\\n- `getAnalysisFiles`: Fetches analysis files from the **current version**\\n  (the version being generated right now)\\n- `getPreviousAnalysisFiles`: Fetches analysis files from the **previous\\n  version** (the last successfully generated version)\\n\\n**Example Scenario:**\\n\\n```\\nInitial generation:\\n- ANALYZE phase creates: UserManagement.md, OrderWorkflow.md\\n- Generation completes successfully\\n\\nUser: \\\"Add payment integration to orders\\\"\\n\\nRegeneration:\\n- ANALYZE phase starts regeneration\\n- Calls getPreviousAnalysisFiles([\\\"OrderWorkflow.md\\\"])\\n  → Loads the previous version of OrderWorkflow.md as reference\\n- Creates new version of OrderWorkflow.md with payment integration\\n```\\n\\n**Waterfall + Spiral Pattern:**\\n\\nThis aligns with AutoBE's regeneration cycles where:\\n- Compilation failures trigger regeneration\\n- User modifications trigger new versions\\n- Previous artifacts serve as reference context for improvements\",\"type\":\"object\",\"properties\":{\"type\":{\"description\":\"Type discriminator for the request.\\n\\nDetermines which action to perform: preliminary data retrieval or actual\\ntask execution. Value \\\"getPreviousAnalysisFiles\\\" indicates this is a\\npreliminary data request for analysis files from a previous version.\",\"type\":\"string\",\"enum\":[\"getPreviousAnalysisFiles\"]},\"fileNames\":{\"description\":\"List of analysis file names to retrieve from the previous version.\\n\\nThese are file names that were generated in a previous version and are\\nneeded as reference context for the current regeneration.\\n\\n**Important Notes:**\\n\\n- These files MUST exist in the previous version\\n- This function is only available when a previous version exists\\n- Used for reference/comparison, not for re-requesting within same execution\\n- File names are the same as in the current version (e.g., \\\"UserManagement.md\\\")\\n\\n**When This Function is Available:**\\n\\n- When a previous version exists\\n- When user requests modifications to existing generated application\\n- During correction/regeneration cycles that need previous context\\n\\n**When This Function is NOT Available:**\\n\\n- During initial generation (no previous version exists)\\n- No previous artifacts available for this orchestration task\\n\\n\\n@minItems 1\",\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"type\",\"fileNames\"]},\"IAutoBePreliminaryGetAnalysisFiles\":{\"description\":\"Request to retrieve requirements analysis files for context.\\n\\nThis type is used in the preliminary phase to request specific analysis files\\nthat provide business requirements and domain context.\",\"type\":\"object\",\"properties\":{\"type\":{\"description\":\"Type discriminator for the request.\\n\\nDetermines which action to perform: preliminary data retrieval or actual\\ntask execution. Value \\\"getAnalysisFiles\\\" indicates this is a preliminary\\ndata request for analysis files.\",\"type\":\"string\",\"enum\":[\"getAnalysisFiles\"]},\"fileNames\":{\"description\":\"List of analysis file names to retrieve.\\n\\nFile names from the analyze phase containing requirements, use cases, and\\nbusiness logic documentation.\\n\\nCRITICAL: DO NOT request the same file names that you have already\\nrequested in previous calls.\\n\\n\\n@minItems 1\",\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"type\",\"fileNames\"]},\"IAutoBePreliminaryGetPreviousPrismaSchemas\":{\"description\":\"Request to retrieve Prisma schemas from a previous version.\\n\\nThis type is used to load Prisma database schema definitions that were\\ngenerated in a **previous version** of the AutoBE generation pipeline.\\nThis is NOT about re-requesting schemas within the same execution, but rather\\naccessing artifacts from an earlier version.\\n\\n**Use Case:** When regenerating or modifying the database schema based on\\nuser change requests, agents need to reference the previously generated\\nPrisma schemas to understand the existing database structure and what needs\\nto be modified.\\n\\n**Key Difference from `getPrismaSchemas`:**\\n\\n- `getPrismaSchemas`: Fetches schemas from the **current version**\\n  (the version being generated right now)\\n- `getPreviousPrismaSchemas`: Fetches schemas from the **previous version**\\n  (the last successfully generated version)\\n\\n**Example Scenario:**\\n\\n```\\nInitial generation:\\n- PRISMA phase creates: users, posts, comments tables\\n- Generation completes successfully\\n\\nUser: \\\"Add email verification status to users\\\"\\n\\nRegeneration:\\n- PRISMA phase starts regeneration\\n- Calls getPreviousPrismaSchemas([\\\"users\\\"])\\n  → Loads the previous version of users table schema\\n- Creates new version with emailVerified field added\\n```\\n\\n**Waterfall + Spiral Pattern:**\\n\\nThis aligns with AutoBE's regeneration cycles where:\\n- Compilation failures trigger regeneration with corrections\\n- User modifications trigger new versions\\n- Previous schemas serve as reference for incremental changes\",\"type\":\"object\",\"properties\":{\"type\":{\"description\":\"Type discriminator for the request.\\n\\nDetermines which action to perform: preliminary data retrieval or actual\\ntask execution. Value \\\"getPreviousPrismaSchemas\\\" indicates this is a\\npreliminary data request for Prisma schemas from a previous version.\",\"type\":\"string\",\"enum\":[\"getPreviousPrismaSchemas\"]},\"schemaNames\":{\"description\":\"List of Prisma table names to retrieve from the previous version.\\n\\nThese are table schema names that were generated in a previous version\\nand are needed as reference context for the current regeneration.\\n\\n**Important Notes:**\\n\\n- These schemas MUST exist in the previous version\\n- This function is only available when a previous version exists\\n- Used for reference/comparison, not for re-requesting within same execution\\n- Table names are in snake_case (e.g., \\\"shopping_sale\\\", \\\"bbs_article\\\")\\n\\n**When This Function is Available:**\\n\\n- When a previous version exists\\n- When user requests modifications to existing database schema\\n- During correction/regeneration cycles that need previous schema context\\n\\n**When This Function is NOT Available:**\\n\\n- During initial generation (no previous version exists)\\n- No previous Prisma schemas available for this orchestration task\\n\\n**Example Table Names:**\\n\\n- \\\"users\\\", \\\"posts\\\", \\\"comments\\\"\\n- \\\"shopping_sales\\\", \\\"shopping_orders\\\", \\\"shopping_products\\\"\\n- \\\"bbs_articles\\\", \\\"bbs_article_files\\\"\\n\\n\\n@minItems 1\",\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"type\",\"schemaNames\"]},\"IAutoBePreliminaryGetPrismaSchemas\":{\"description\":\"Request to retrieve Prisma database schema definitions for context.\\n\\nThis type is used in the preliminary phase to request specific Prisma table\\nschemas needed for generating type-safe API operations.\",\"type\":\"object\",\"properties\":{\"type\":{\"description\":\"Type discriminator for the request.\\n\\nDetermines which action to perform: preliminary data retrieval or actual\\ntask execution. Value \\\"getPrismaSchemas\\\" indicates this is a preliminary\\ndata request for Prisma schemas.\",\"type\":\"string\",\"enum\":[\"getPrismaSchemas\"]},\"schemaNames\":{\"description\":\"List of Prisma table names to retrieve.\\n\\nTable names from the Prisma schema file representing database entities\\n(e.g., \\\"user\\\", \\\"post\\\", \\\"comment\\\").\\n\\nCRITICAL: DO NOT request the same schema names that you have already\\nrequested in previous calls.\\n\\n\\n@minItems 1\",\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"type\",\"schemaNames\"]},\"IAutoBePreliminaryGetPreviousInterfaceOperations\":{\"description\":\"Request to retrieve interface operations from a previous version.\\n\\nThis type is used to load API operation definitions that were generated in a\\n**previous version** of the AutoBE generation pipeline. This is NOT about\\nre-requesting operations within the same execution, but rather accessing\\nartifacts from an earlier version.\\n\\n**Use Case:** When regenerating or modifying API operations based on user\\nchange requests, agents need to reference the previously generated operations\\nto understand the existing API design and what needs to be modified.\\n\\n**Key Difference from `getInterfaceOperations`:**\\n\\n- `getInterfaceOperations`: Fetches operations from the **current version**\\n  (the version being generated right now)\\n- `getPreviousInterfaceOperations`: Fetches operations from the **previous\\n  version** (the last successfully generated version)\\n\\n**Example Scenario:**\\n\\n```\\nInitial generation:\\n- INTERFACE phase creates: GET /users, POST /users, GET /users/{id}\\n- Generation completes successfully\\n\\nUser: \\\"Change user creation to require email verification\\\"\\n\\nRegeneration:\\n- INTERFACE phase starts regeneration\\n- Calls getPreviousInterfaceOperations([{method: \\\"POST\\\", path: \\\"/users\\\"}])\\n  → Loads the previous version of POST /users operation\\n- Creates new version with emailVerification requirement in request body\\n```\\n\\n**Automatic Schema Loading:**\\n\\nWhen operations are loaded from the previous version, their associated\\nrequest/response body schemas are also referenced, providing complete context\\nfor understanding the operation's data structures.\\n\\n**Waterfall + Spiral Pattern:**\\n\\nThis aligns with AutoBE's regeneration cycles where:\\n- Compilation failures trigger regeneration with corrections\\n- User modifications trigger new versions\\n- Previous operations serve as reference for incremental API changes\",\"type\":\"object\",\"properties\":{\"type\":{\"description\":\"Type discriminator for the request.\\n\\nDetermines which action to perform: preliminary data retrieval or actual\\ntask execution. Value \\\"getPreviousInterfaceOperations\\\" indicates this is a\\npreliminary data request for interface operations from a previous version.\",\"type\":\"string\",\"enum\":[\"getPreviousInterfaceOperations\"]},\"endpoints\":{\"description\":\"List of API operation endpoints to retrieve from the previous version.\\n\\nThese are endpoint identifiers (method + path) that were generated in a\\nprevious version and are needed as reference context for the current\\nregeneration.\\n\\n**Important Notes:**\\n\\n- These endpoints MUST exist in the previous version\\n- This function is only available when a previous version exists\\n- Used for reference/comparison, not for re-requesting within same execution\\n- Each endpoint is identified by: `{method: \\\"GET|POST|PUT|DELETE|PATCH\\\",\\n  path: \\\"/api/path\\\"}`\\n\\n**When This Function is Available:**\\n\\n- When a previous version exists\\n- When user requests modifications to existing API operations\\n- During correction/regeneration cycles that need previous operation context\\n\\n**When This Function is NOT Available:**\\n\\n- During initial generation (no previous version exists)\\n- No previous interface operations available for this orchestration task\\n\\n**Endpoint Format:**\\n\\n- Method: HTTP verb in uppercase (e.g., \\\"GET\\\", \\\"POST\\\", \\\"PUT\\\", \\\"DELETE\\\", \\\"PATCH\\\")\\n- Path: OpenAPI path with parameters (e.g., \\\"/users/{id}\\\", \\\"/posts\\\")\\n\\n**Example Endpoints:**\\n\\n- `{method: \\\"GET\\\", path: \\\"/users/{id}\\\"}`\\n- `{method: \\\"POST\\\", path: \\\"/shoppings/orders\\\"}`\\n- `{method: \\\"PATCH\\\", path: \\\"/bbs/articles\\\"}`\\n\\n\\n@minItems 1\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/AutoBeOpenApi.IEndpoint\"}}},\"required\":[\"type\",\"endpoints\"]},\"AutoBeOpenApi.IEndpoint\":{\"description\":\"API endpoint information.\",\"type\":\"object\",\"properties\":{\"path\":{\"description\":\"HTTP path of the API operation.\\n\\nThe URL path for accessing this API operation, using path parameters\\nenclosed in curly braces (e.g., `/shoppings/customers/sales/{saleId}`).\\n\\nIt must be corresponded to the {@link parameters path parameters}.\\n\\nThe path structure should clearly indicate which database entity this\\noperation is manipulating, helping to ensure all entities have\\nappropriate API coverage.\\n\\nPath validation rules:\\n\\n- Must start with a forward slash (/)\\n- Can contain only: letters (a-z, A-Z), numbers (0-9), forward slashes (/),\\n  curly braces for parameters ({paramName}), hyphens (-), and underscores\\n  (_)\\n- Parameters must be enclosed in curly braces: {paramName}\\n- Resource names should be in camelCase\\n- No quotes, spaces, or invalid special characters allowed\\n- No domain or role-based prefixes\\n\\nValid examples:\\n\\n- \\\"/users\\\"\\n- \\\"/users/{userId}\\\"\\n- \\\"/articles/{articleId}/comments\\\"\\n- \\\"/attachmentFiles\\\"\\n- \\\"/orders/{orderId}/items/{itemId}\\\"\\n\\nInvalid examples:\\n\\n- \\\"'/users'\\\" (contains quotes)\\n- \\\"/user profile\\\" (contains space)\\n- \\\"/users/[userId]\\\" (wrong bracket format)\\n- \\\"/admin/users\\\" (role prefix)\\n- \\\"/api/v1/users\\\" (API prefix)\\n\\n\\n@pattern ^\\\\/[a-zA-Z0-9\\\\/_{}.-]*$\",\"type\":\"string\"},\"method\":{\"description\":\"HTTP method of the API operation.\\n\\n**IMPORTANT**: Methods must be written in lowercase only (e.g., \\\"get\\\",\\nnot \\\"GET\\\").\\n\\nNote that, if the API operation has {@link requestBody}, method must not\\nbe `get`.\\n\\nAlso, even though the API operation has been designed to only get\\ninformation, but it needs complicated request information, it must be\\ndefined as `patch` method with {@link requestBody} data specification.\\n\\n- `get`: get information\\n- `patch`: get information with complicated request data\\n  ({@link requestBody})\\n- `post`: create new record\\n- `put`: update existing record\\n- `delete`: remove record\",\"type\":\"string\",\"enum\":[\"get\",\"post\",\"patch\",\"put\",\"delete\"]}},\"required\":[\"path\",\"method\"]},\"IAutoBeInterfaceOperationReviewApplication.IComplete\":{\"description\":\"Request to review and validate API operations.\\n\\nExecutes systematic operation review for quality and correctness, analyzing\\nsecurity vulnerabilities, schema compliance, logical consistency, and\\nstandard adherence. Outputs structured thinking process and enhanced\\noperations.\",\"type\":\"object\",\"properties\":{\"type\":{\"description\":\"Type discriminator for the request.\\n\\nDetermines which action to perform: preliminary data retrieval or actual\\ntask execution. Value \\\"complete\\\" indicates this is the final task\\nexecution request.\",\"type\":\"string\",\"enum\":[\"complete\"]},\"think\":{\"description\":\"Comprehensive thinking process for API operation review.\\n\\nEncapsulates the agent's analytical review findings and actionable\\nimprovement plan. This structured thinking process ensures systematic\\nevaluation of API operations against AutoBE's quality standards before\\ngenerating the final enhanced operations.\",\"$ref\":\"#/$defs/IAutoBeInterfaceOperationReviewApplication.IThink\"},\"content\":{\"description\":\"Production-ready operations with all critical issues resolved.\\n\\nFinal API operations after systematic enhancement:\\n\\n- **Security Fixes Applied**: All authentication boundaries enforced,\\n  sensitive data removed from responses, proper authorization\\n  implemented\\n- **Logic Corrections Made**: Return types match operation intent, HTTP\\n  methods align with semantics, parameters properly utilized\\n- **Schema Alignment Verified**: All fields exist in Prisma schema, types\\n  correctly mapped, relationships properly defined\\n- **Quality Improvements Added**: Enhanced documentation, format\\n  specifications, validation rules, consistent naming patterns\\n\\nIf no issues were found during review, this contains the exact original\\noperations unchanged. These operations are validated and ready for schema\\ngeneration and subsequent implementation phases.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/AutoBeOpenApi.IOperation\"}}},\"required\":[\"type\",\"think\",\"content\"]},\"IAutoBeInterfaceOperationReviewApplication.IThink\":{\"description\":\"Structured thinking process for operation review.\\n\\nContains analytical review findings and improvement action plan organized\\nfor systematic enhancement of the operations.\",\"type\":\"object\",\"properties\":{\"review\":{\"description\":\"Comprehensive review analysis with prioritized findings.\\n\\nSystematic assessment organized by severity levels (CRITICAL, HIGH,\\nMEDIUM, LOW):\\n\\n- **Security Analysis**: Authentication boundary violations, exposed\\n  passwords/tokens, unauthorized data access patterns, SQL injection\\n  risks\\n- **Logic Validation**: Return type consistency (list operations returning\\n  arrays, single retrieval returning single items), HTTP method semantics\\n  alignment, parameter usage verification\\n- **Schema Compliance**: Field existence in Prisma schema, type accuracy,\\n  relationship validity, required field handling\\n- **Quality Assessment**: Documentation completeness, naming conventions,\\n  error handling patterns, pagination standards\\n\\nEach finding includes specific examples, current vs expected behavior,\\nand concrete fix recommendations. Critical security issues and logical\\ncontradictions are highlighted for immediate attention.\",\"type\":\"string\"},\"plan\":{\"description\":\"Prioritized action plan for identified issues.\\n\\nStructured improvement strategy categorized by severity:\\n\\n- **Immediate Actions (CRITICAL)**: Security vulnerabilities that must be\\n  fixed before production (password exposure, missing authorization,\\n  authentication bypass risks)\\n- **Required Fixes (HIGH)**: Functional issues affecting API correctness\\n  (wrong return types, missing required fields, schema mismatches)\\n- **Recommended Improvements (MEDIUM)**: Quality enhancements for better\\n  API design (validation rules, format specifications, consistency)\\n- **Optional Enhancements (LOW)**: Documentation and usability improvements\\n\\nIf all operations pass review without issues, contains: \\\"No improvements\\nrequired. All operations meet AutoBE standards.\\\"\\n\\nEach action item includes the specific operation path, the exact change\\nneeded, and the rationale for the modification.\",\"type\":\"string\"}},\"required\":[\"review\",\"plan\"]},\"AutoBeOpenApi.IOperation\":{\"description\":\"Operation of the Restful API.\\n\\nThis interface defines a single API endpoint with its HTTP {@link method},\\n{@link path}, {@link parameters path parameters},\\n{@link requestBody request body}, and {@link responseBody} structure. It\\ncorresponds to an individual operation in the paths section of an OpenAPI\\ndocument.\\n\\nEach operation requires a detailed explanation of its purpose through the\\nreason and description fields, making it clear why the API was designed and\\nhow it should be used.\\n\\nAll request bodies and responses for this operation must be object types\\nand must reference named types defined in the components section. The\\ncontent-type is always `application/json`. For file upload/download\\noperations, use `string & tags.Format<\\\"uri\\\">` in the appropriate schema\\ninstead of binary data formats.\\n\\nIn OpenAPI, this might represent:\\n\\n```json\\n{\\n  \\\"/shoppings/customers/orders\\\": {\\n    \\\"post\\\": {\\n      \\\"description\\\": \\\"Create a new order application from shopping cart...\\\",\\n      \\\"parameters\\\": [...],\\n      \\\"requestBody\\\": {...},\\n      \\\"responses\\\": {...},\\n      ...\\n    }\\n  }\\n}\\n```\",\"type\":\"object\",\"properties\":{\"authorizationType\":{\"description\":\"Authorization type of the API operation.\\n\\n- `\\\"login\\\"`: User login operations that validate credentials\\n- `\\\"join\\\"`: User registration operations that create accounts\\n- `\\\"refresh\\\"`: Token refresh operations that renew access tokens\\n- `null`: All other operations (CRUD, business logic, etc.)\\n\\nUse authentication values only for credential validation, user\\nregistration, or token refresh operations. Use `null` for all other\\nbusiness operations.\\n\\nExamples:\\n\\n- `/auth/login` → `\\\"login\\\"`\\n- `/auth/register` → `\\\"join\\\"`\\n- `/auth/refresh` → `\\\"refresh\\\"`\\n- `/auth/validate` → `null`\\n- `/users/{id}`, `/shoppings/customers/sales/cancel`, → `null`\",\"anyOf\":[{\"type\":\"null\"},{\"type\":\"string\",\"enum\":[\"join\",\"login\",\"refresh\"]}]},\"description\":{\"description\":\"Detailed description about the API operation.\\n\\nIMPORTANT: This field MUST be extensively detailed and MUST reference the\\ndescription comments from the related Prisma DB schema tables and\\ncolumns. The description should be organized into MULTIPLE PARAGRAPHS\\nseparated by line breaks to improve readability and comprehension.\\n\\nFor example, include separate paragraphs for:\\n\\n- The purpose and overview of the API operation\\n- Security considerations and user permissions\\n- Relationship to underlying database entities\\n- Validation rules and business logic\\n- Related API operations that might be used together with this one\\n- Expected behavior and error handling\\n\\nWhen writing the description, be sure to incorporate the corresponding DB\\nschema's description comments, matching the level of detail and style of\\nthose comments. This ensures consistency between the API documentation\\nand database structure.\\n\\nIf there's a dependency to other APIs, please describe the dependency API\\noperation in this field with detailed reason. For example, if this API\\noperation needs a pre-execution of other API operation, it must be\\nexplicitly described.\\n\\n- `GET /shoppings/customers/sales` must be pre-executed to get entire list\\n  of summarized sales. Detailed sale information would be obtained by\\n  specifying the sale ID in the path parameter.\\n\\n**CRITICAL WARNING about soft delete keywords**: DO NOT use terms like\\n\\\"soft delete\\\", \\\"soft-delete\\\", or similar variations in this description\\nUNLESS the operation actually implements soft deletion. These keywords\\ntrigger validation logic that expects a corresponding soft_delete_column\\nto be specified. Only use these terms when you intend to implement soft\\ndeletion (marking records as deleted without removing them from the\\ndatabase).\\n\\nExample of problematic description: ❌ \\\"This would normally be a\\nsoft-delete, but we intentionally perform permanent deletion here\\\" - This\\ntriggers soft delete validation despite being a hard delete operation.\\n\\n> MUST be written in English. Never use other languages.\",\"type\":\"string\"},\"parameters\":{\"description\":\"List of path parameters.\\n\\nNote that, the {@link AutoBeOpenApi.IParameter.name identifier name} of\\npath parameter must be corresponded to the\\n{@link path API operation path}.\\n\\nFor example, if there's an API operation which has {@link path} of\\n`/shoppings/customers/sales/{saleId}/questions/${questionId}/comments/${commentId}`,\\nits list of {@link AutoBeOpenApi.IParameter.name path parameters} must be\\nlike:\\n\\n- `saleId`\\n- `questionId`\\n- `commentId`\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/AutoBeOpenApi.IParameter\"}},\"requestBody\":{\"description\":\"Request body of the API operation.\\n\\nDefines the payload structure for the request. Contains a description and\\nschema reference to define the expected input data.\\n\\nShould be `null` for operations that don't require a request body, such\\nas most \\\"get\\\" operations.\",\"anyOf\":[{\"type\":\"null\"},{\"$ref\":\"#/$defs/AutoBeOpenApi.IRequestBody\"}]},\"responseBody\":{\"description\":\"Response body of the API operation.\\n\\nDefines the structure of the successful response data. Contains a\\ndescription and schema reference for the returned data.\\n\\nShould be null for operations that don't return any data.\",\"anyOf\":[{\"type\":\"null\"},{\"$ref\":\"#/$defs/AutoBeOpenApi.IResponseBody\"}]},\"authorizationActor\":{\"description\":\"Authorization actor required to access this API operation.\\n\\nThis field specifies which user actor is allowed to access this endpoint.\\nThe actor name must correspond exactly to the actual actors defined in\\nyour system's Prisma schema.\\n\\n## Naming Convention\\n\\nActor names MUST use camelCase.\\n\\n## Actor-Based Path Convention\\n\\nWhen authorizationActor is specified, it should align with the path\\nstructure:\\n\\n- If authorizationActor is \\\"admin\\\" → path might be \\\"/admin/resources/{id}\\\"\\n- If authorizationActor is \\\"seller\\\" → path might be \\\"/seller/products\\\"\\n- Special case: For user's own resources, use path prefix \\\"/my/\\\" regardless\\n  of actor\\n\\n## Important Guidelines\\n\\n- Set to `null` for public endpoints that require no authentication\\n- Set to specific actor string for actor-restricted endpoints\\n- The actor name MUST match exactly with the user type/actor defined in the\\n  database\\n- This actor will be used by the Realize Agent to generate appropriate\\n  decorator and authorization logic in the provider functions\\n- The controller will apply the corresponding authentication decorator\\n  based on this actor\\n\\n## Examples\\n\\n- `null` - Public endpoint, no authentication required\\n- `\\\"user\\\"` - Any authenticated user can access\\n- `\\\"admin\\\"` - Only admin users can access\\n- `\\\"seller\\\"` - Only seller users can access\\n- `\\\"moderator\\\"` - Only moderator users can access\\n\\nNote: The actual authentication/authorization implementation will be\\nhandled by decorators at the controller level, and the provider function\\nwill receive the authenticated user object with the appropriate type.\",\"anyOf\":[{\"type\":\"null\"},{\"type\":\"string\",\"description\":\"@minLength 1\\n@pattern ^[a-z][a-zA-Z0-9]*$\"}]},\"name\":{\"description\":\"Functional name of the API endpoint.\\n\\nThis is a semantic identifier that represents the primary function or\\npurpose of the API endpoint. It serves as a canonical name that can be\\nused for code generation, SDK method names, and internal references.\\n\\n## Reserved Word Restrictions\\n\\nCRITICAL: The name MUST NOT be a TypeScript/JavaScript reserved word, as\\nit will be used as a class method name in generated code. Avoid names\\nlike:\\n\\n- `delete`, `for`, `if`, `else`, `while`, `do`, `switch`, `case`, `break`\\n- `continue`, `function`, `return`, `with`, `in`, `of`, `instanceof`\\n- `typeof`, `void`, `var`, `let`, `const`, `class`, `extends`, `import`\\n- `export`, `default`, `try`, `catch`, `finally`, `throw`, `new`\\n- `super`, `this`, `null`, `true`, `false`, `async`, `await`\\n- `yield`, `static`, `private`, `protected`, `public`, `implements`\\n- `interface`, `package`, `enum`, `debugger`\\n\\nInstead, use alternative names for these operations:\\n\\n- Use `erase` instead of `delete`\\n- Use `iterate` instead of `for`\\n- Use `when` instead of `if`\\n- Use `cls` instead of `class`\\n\\n## Standard Endpoint Names\\n\\nUse these conventional names based on the endpoint's primary function:\\n\\n- **`index`**: List/search operations that return multiple entities\\n\\n  - Typically used with PATCH method for complex queries\\n  - Example: `PATCH /users` → `name: \\\"index\\\"`\\n- **`at`**: Retrieve a specific entity by identifier\\n\\n  - Typically used with GET method on single resource\\n  - Example: `GET /users/{userId}` → `name: \\\"at\\\"`\\n- **`create`**: Create a new entity\\n\\n  - Typically used with POST method\\n  - Example: `POST /users` → `name: \\\"create\\\"`\\n- **`update`**: Update an existing entity\\n\\n  - Typically used with PUT method\\n  - Example: `PUT /users/{userId}` → `name: \\\"update\\\"`\\n- **`erase`**: Delete/remove an entity (NOT `delete` - reserved word!)\\n\\n  - Typically used with DELETE method\\n  - Example: `DELETE /users/{userId}` → `name: \\\"erase\\\"`\\n\\n## Custom Endpoint Names\\n\\nFor specialized operations beyond basic CRUD, use descriptive verbs:\\n\\n- **`activate`**: Enable or turn on a feature/entity\\n- **`deactivate`**: Disable or turn off a feature/entity\\n- **`approve`**: Approve a request or entity\\n- **`reject`**: Reject a request or entity\\n- **`publish`**: Make content publicly available\\n- **`archive`**: Move to archived state\\n- **`restore`**: Restore from archived/deleted state\\n- **`duplicate`**: Create a copy of an entity\\n- **`transfer`**: Move ownership or change assignment\\n- **`validate`**: Validate data or state\\n- **`process`**: Execute a business process or workflow\\n- **`export`**: Generate downloadable data\\n- **`import`**: Process uploaded data\\n\\n## Naming Guidelines\\n\\n- MUST use camelCase naming convention\\n- Use singular verb forms\\n- Be concise but descriptive\\n- Avoid abbreviations unless widely understood\\n- Ensure the name clearly represents the endpoint's primary action\\n- For nested resources, focus on the action rather than hierarchy\\n- NEVER use JavaScript/TypeScript reserved words\\n\\nValid Examples:\\n\\n- `index`, `create`, `update`, `erase` (single word)\\n- `updatePassword`, `cancelOrder`, `publishArticle` (camelCase)\\n- `validateEmail`, `generateReport`, `exportData` (camelCase)\\n\\nInvalid Examples:\\n\\n- `update_password` (snake_case not allowed)\\n- `UpdatePassword` (PascalCase not allowed)\\n- `update-password` (kebab-case not allowed)\\n\\nPath to Name Examples:\\n\\n- `GET /shopping/orders/{orderId}/items` → `name: \\\"index\\\"` (lists items)\\n- `POST /shopping/orders/{orderId}/cancel` → `name: \\\"cancel\\\"`\\n- `PUT /users/{userId}/password` → `name: \\\"updatePassword\\\"`\\n\\n## Uniqueness Rule\\n\\nThe `name` must be unique within the API's accessor namespace. The\\naccessor is formed by combining the path segments (excluding parameters)\\nwith the operation name.\\n\\nAccessor formation:\\n\\n1. Extract non-parameter segments from the path (remove `{...}` parts)\\n2. Join segments with dots\\n3. Append the operation name\\n\\nExamples:\\n\\n- Path: `/shopping/sale/{saleId}/review/{reviewId}`, Name: `at` → Accessor:\\n  `shopping.sale.review.at`\\n- Path: `/users/{userId}/posts`, Name: `index` → Accessor:\\n  `users.posts.index`\\n- Path: `/auth/login`, Name: `signIn` → Accessor: `auth.login.signIn`\\n\\nEach accessor must be globally unique across the entire API. This ensures\\noperations can be uniquely identified in generated SDKs and prevents\\nnaming conflicts.\\n\\n\\n@pattern ^[a-z][a-zA-Z0-9]*$\",\"type\":\"string\"},\"prerequisites\":{\"description\":\"Prerequisites for this API operation.\\n\\nThe `prerequisites` field defines API operations that must be\\nsuccessfully executed before this operation can be performed. This\\ncreates an explicit dependency chain between API endpoints, ensuring\\nproper execution order and data availability.\\n\\n## CRITICAL WARNING: Authentication Prerequisites\\n\\n**NEVER include authentication-related operations as prerequisites!**\\nAuthentication is handled separately through the `authorizationActor`\\nfield and should NOT be part of the prerequisite chain. Do NOT add\\nprerequisites for:\\n\\n- Login endpoints\\n- Token validation endpoints\\n- User authentication checks\\n- Permission verification endpoints\\n\\nPrerequisites are ONLY for business logic dependencies, NOT for\\nauthentication/authorization.\\n\\n## Purpose and Use Cases\\n\\nPrerequisites are essential for operations that depend on:\\n\\n1. **Existence Validation**: Ensuring resources exist before manipulation\\n2. **State Requirements**: Verifying resources are in the correct state\\n3. **Data Dependencies**: Loading necessary data for the current operation\\n4. **Business Logic Constraints**: Enforcing domain-specific rules\\n\\n## Execution Flow\\n\\nWhen an operation has prerequisites:\\n\\n1. Each prerequisite API must be called first in the specified order\\n2. Prerequisites must return successful responses (2xx status codes)\\n3. Only after all prerequisites succeed can the main operation proceed\\n4. If any prerequisite fails, the operation should not be attempted\\n\\n## Common Patterns\\n\\n### Resource Existence Check\\n\\n```typescript\\n// Before updating an order item, ensure the order exists\\nprerequisites: [\\n  {\\n    endpoint: { path: \\\"/orders/{orderId}\\\", method: \\\"get\\\" },\\n    description: \\\"Order must exist in the system\\\",\\n  },\\n];\\n```\\n\\n### State Validation\\n\\n```typescript\\n// Before processing payment, ensure order is in correct state\\nprerequisites: [\\n  {\\n    endpoint: { path: \\\"/orders/{orderId}/status\\\", method: \\\"get\\\" },\\n    description: \\\"Order must be in 'pending_payment' status\\\",\\n  },\\n];\\n```\\n\\n### Hierarchical Dependencies\\n\\n```typescript\\n// Before accessing a deeply nested resource\\nprerequisites: [\\n  {\\n    endpoint: { path: \\\"/projects/{projectId}\\\", method: \\\"get\\\" },\\n    description: \\\"Project must exist\\\",\\n  },\\n  {\\n    endpoint: {\\n      path: \\\"/projects/{projectId}/tasks/{taskId}\\\",\\n      method: \\\"get\\\",\\n    },\\n    description: \\\"Task must exist within the project\\\",\\n  },\\n];\\n```\\n\\n## Important Guidelines\\n\\n1. **Order Matters**: Prerequisites are executed in array order\\n2. **Parameter Inheritance**: Path parameters from prerequisites can be used\\n   in the main operation\\n3. **Error Handling**: Failed prerequisites should prevent main operation\\n4. **Performance**: Consider caching prerequisite results when appropriate\\n5. **Documentation**: Each prerequisite must have a clear description\\n   explaining why it's required\\n6. **No Authentication**: NEVER use prerequisites for authentication checks\\n\\n## Test Generation Impact\\n\\nThe Test Agent uses prerequisites to:\\n\\n- Generate proper test setup sequences\\n- Create valid test data in the correct order\\n- Ensure test scenarios follow realistic workflows\\n- Validate error handling when prerequisites fail\",\"type\":\"array\",\"items\":{\"$ref\":\"#/$defs/AutoBeOpenApi.IPrerequisite\"}},\"path\":{\"description\":\"HTTP path of the API operation.\\n\\nThe URL path for accessing this API operation, using path parameters\\nenclosed in curly braces (e.g., `/shoppings/customers/sales/{saleId}`).\\n\\nIt must be corresponded to the {@link parameters path parameters}.\\n\\nThe path structure should clearly indicate which database entity this\\noperation is manipulating, helping to ensure all entities have\\nappropriate API coverage.\\n\\nPath validation rules:\\n\\n- Must start with a forward slash (/)\\n- Can contain only: letters (a-z, A-Z), numbers (0-9), forward slashes (/),\\n  curly braces for parameters ({paramName}), hyphens (-), and underscores\\n  (_)\\n- Parameters must be enclosed in curly braces: {paramName}\\n- Resource names should be in camelCase\\n- No quotes, spaces, or invalid special characters allowed\\n- No domain or role-based prefixes\\n\\nValid examples:\\n\\n- \\\"/users\\\"\\n- \\\"/users/{userId}\\\"\\n- \\\"/articles/{articleId}/comments\\\"\\n- \\\"/attachmentFiles\\\"\\n- \\\"/orders/{orderId}/items/{itemId}\\\"\\n\\nInvalid examples:\\n\\n- \\\"'/users'\\\" (contains quotes)\\n- \\\"/user profile\\\" (contains space)\\n- \\\"/users/[userId]\\\" (wrong bracket format)\\n- \\\"/admin/users\\\" (role prefix)\\n- \\\"/api/v1/users\\\" (API prefix)\\n\\n\\n@pattern ^\\\\/[a-zA-Z0-9\\\\/_{}.-]*$\",\"type\":\"string\"},\"method\":{\"description\":\"HTTP method of the API operation.\\n\\n**IMPORTANT**: Methods must be written in lowercase only (e.g., \\\"get\\\",\\nnot \\\"GET\\\").\\n\\nNote that, if the API operation has {@link requestBody}, method must not\\nbe `get`.\\n\\nAlso, even though the API operation has been designed to only get\\ninformation, but it needs complicated request information, it must be\\ndefined as `patch` method with {@link requestBody} data specification.\\n\\n- `get`: get information\\n- `patch`: get information with complicated request data\\n  ({@link requestBody})\\n- `post`: create new record\\n- `put`: update existing record\\n- `delete`: remove record\",\"type\":\"string\",\"enum\":[\"get\",\"post\",\"patch\",\"put\",\"delete\"]}},\"required\":[\"authorizationType\",\"description\",\"parameters\",\"requestBody\",\"responseBody\",\"authorizationActor\",\"name\",\"prerequisites\",\"path\",\"method\"]},\"AutoBeOpenApi.IParameter\":{\"description\":\"Path parameter information for API routes.\\n\\nThis interface defines a path parameter that appears in the URL of an API\\nendpoint. Path parameters are enclosed in curly braces in the\\n{@link AutoBeOpenApi.IOperation.path operation path} and must be defined\\nwith their types and descriptions.\\n\\nFor example, if API operation path is\\n`/shoppings/customers/sales/{saleId}/questions/${questionId}/comments/${commentId}`,\\nthe path parameters should be like below:\\n\\n```json\\n{\\n  \\\"path\\\": \\\"/shoppings/customers/sales/{saleId}/questions/${questionId}/comments/${commentId}\\\",\\n  \\\"method\\\": \\\"get\\\",\\n  \\\"parameters\\\": [\\n    {\\n      \\\"name\\\": \\\"saleId\\\",\\n      \\\"in\\\": \\\"path\\\",\\n      \\\"schema\\\": { \\\"type\\\": \\\"string\\\", \\\"format\\\": \\\"uuid\\\" },\\n      \\\"description\\\": \\\"Target sale's ID\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"questionId\\\",\\n      \\\"in\\\": \\\"path\\\",\\n      \\\"schema\\\": { \\\"type\\\": \\\"string\\\", \\\"format\\\": \\\"uuid\\\" },\\n      \\\"description\\\": \\\"Target question's ID\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"commentId\\\",\\n      \\\"in\\\": \\\"path\\\",\\n      \\\"schema\\\": { \\\"type\\\": \\\"string\\\", \\\"format\\\": \\\"uuid\\\" },\\n      \\\"description\\\": \\\"Target comment's ID\\\"\\n    }\\n  ]\\n}\\n```\",\"type\":\"object\",\"properties\":{\"name\":{\"description\":\"Identifier name of the path parameter.\\n\\nThis name must match exactly with the parameter name in the route path.\\nIt must be corresponded to the\\n{@link AutoBeOpenApi.IOperation.path API operation path}.\\n\\nMUST use camelCase naming convention.\\n\\n\\n@pattern ^[a-z][a-zA-Z0-9]*$\",\"type\":\"string\"},\"description\":{\"description\":\"Description about the path parameter.\\n\\nMake short, concise and clear description about the path parameter.\\n\\n> MUST be written in English. Never use other languages.\",\"type\":\"string\"},\"schema\":{\"description\":\"Type schema of the path parameter.\\n\\nPath parameters are typically primitive types like\\n{@link AutoBeOpenApi.IJsonSchema.IString strings},\\n{@link AutoBeOpenApi.IJsonSchema.IInteger integers},\\n{@link AutoBeOpenApi.IJsonSchema.INumber numbers}.\\n\\nIf you need other types, please use request body instead with object type\\nencapsulation.\",\"anyOf\":[{\"$ref\":\"#/$defs/AutoBeOpenApi.IJsonSchema.INumber\"},{\"$ref\":\"#/$defs/AutoBeOpenApi.IJsonSchema.IInteger\"},{\"$ref\":\"#/$defs/AutoBeOpenApi.IJsonSchema.IString\"}],\"x-discriminator\":{\"propertyName\":\"type\",\"mapping\":{\"number\":\"#/$defs/AutoBeOpenApi.IJsonSchema.INumber\",\"integer\":\"#/$defs/AutoBeOpenApi.IJsonSchema.IInteger\",\"string\":\"#/$defs/AutoBeOpenApi.IJsonSchema.IString\"}}}},\"required\":[\"name\",\"description\",\"schema\"]},\"AutoBeOpenApi.IJsonSchema.INumber\":{\"description\":\"Number (double) type info.\",\"type\":\"object\",\"properties\":{\"minimum\":{\"description\":\"Minimum value restriction.\",\"type\":\"number\"},\"maximum\":{\"description\":\"Maximum value restriction.\",\"type\":\"number\"},\"exclusiveMinimum\":{\"description\":\"Exclusive minimum value restriction.\",\"type\":\"number\"},\"exclusiveMaximum\":{\"description\":\"Exclusive maximum value restriction.\",\"type\":\"number\"},\"multipleOf\":{\"description\":\"Multiple of value restriction.\\n\\n\\n@exclusiveMinimum 0\",\"type\":\"number\"},\"type\":{\"description\":\"Discriminator value of the type.\\n\\nCRITICAL: This MUST be a SINGLE string value, NOT an array. The type\\nfield identifies the JSON Schema type and must be exactly one of:\\n\\\"boolean\\\", \\\"integer\\\", \\\"number\\\", \\\"string\\\", \\\"array\\\", \\\"object\\\", or\\n\\\"null\\\".\\n\\n❌ INCORRECT: type: [\\\"string\\\", \\\"null\\\"] // This is WRONG! ✅ CORRECT:\\ntype: \\\"string\\\" // For nullable string, use oneOf instead\\n\\nIf you need to express a nullable type (e.g., string | null), you MUST\\nuse the `IOneOf` structure:\\n\\n```typescript\\n{\\n  \\\"oneOf\\\": [{ \\\"type\\\": \\\"string\\\" }, { \\\"type\\\": \\\"null\\\" }]\\n}\\n```\\n\\nNEVER use array notation in the type field. The type field is a\\ndiscriminator that accepts only a single string value.\",\"type\":\"string\",\"enum\":[\"number\"]}},\"required\":[\"type\"]},\"AutoBeOpenApi.IJsonSchema.IInteger\":{\"description\":\"Integer type info.\",\"type\":\"object\",\"properties\":{\"minimum\":{\"description\":\"Minimum value restriction.\",\"type\":\"integer\"},\"maximum\":{\"description\":\"Maximum value restriction.\",\"type\":\"integer\"},\"exclusiveMinimum\":{\"description\":\"Exclusive minimum value restriction.\",\"type\":\"number\"},\"exclusiveMaximum\":{\"description\":\"Exclusive maximum value restriction.\",\"type\":\"number\"},\"multipleOf\":{\"description\":\"Multiple of value restriction.\\n\\n\\n@exclusiveMinimum 0\",\"type\":\"integer\"},\"type\":{\"description\":\"Discriminator value of the type.\\n\\nCRITICAL: This MUST be a SINGLE string value, NOT an array. The type\\nfield identifies the JSON Schema type and must be exactly one of:\\n\\\"boolean\\\", \\\"integer\\\", \\\"number\\\", \\\"string\\\", \\\"array\\\", \\\"object\\\", or\\n\\\"null\\\".\\n\\n❌ INCORRECT: type: [\\\"string\\\", \\\"null\\\"] // This is WRONG! ✅ CORRECT:\\ntype: \\\"string\\\" // For nullable string, use oneOf instead\\n\\nIf you need to express a nullable type (e.g., string | null), you MUST\\nuse the `IOneOf` structure:\\n\\n```typescript\\n{\\n  \\\"oneOf\\\": [{ \\\"type\\\": \\\"string\\\" }, { \\\"type\\\": \\\"null\\\" }]\\n}\\n```\\n\\nNEVER use array notation in the type field. The type field is a\\ndiscriminator that accepts only a single string value.\",\"type\":\"string\",\"enum\":[\"integer\"]}},\"required\":[\"type\"]},\"AutoBeOpenApi.IJsonSchema.IString\":{\"description\":\"String type info.\",\"type\":\"object\",\"properties\":{\"format\":{\"description\":\"Format restriction.\",\"type\":\"string\",\"enum\":[\"date-time\",\"url\",\"uuid\",\"uri\",\"password\",\"regex\",\"email\",\"hostname\",\"idn-email\",\"idn-hostname\",\"iri\",\"iri-reference\",\"ipv4\",\"ipv6\",\"uri-reference\",\"uri-template\",\"date\",\"time\",\"duration\",\"json-pointer\",\"relative-json-pointer\"]},\"pattern\":{\"description\":\"Pattern restriction.\",\"type\":\"string\"},\"contentMediaType\":{\"description\":\"Content media type restriction.\",\"type\":\"string\"},\"minLength\":{\"description\":\"Minimum length restriction.\\n\\n\\n@minimum 0\",\"type\":\"integer\"},\"maxLength\":{\"description\":\"Maximum length restriction.\\n\\n\\n@minimum 0\",\"type\":\"integer\"},\"type\":{\"description\":\"Discriminator value of the type.\\n\\nCRITICAL: This MUST be a SINGLE string value, NOT an array. The type\\nfield identifies the JSON Schema type and must be exactly one of:\\n\\\"boolean\\\", \\\"integer\\\", \\\"number\\\", \\\"string\\\", \\\"array\\\", \\\"object\\\", or\\n\\\"null\\\".\\n\\n❌ INCORRECT: type: [\\\"string\\\", \\\"null\\\"] // This is WRONG! ✅ CORRECT:\\ntype: \\\"string\\\" // For nullable string, use oneOf instead\\n\\nIf you need to express a nullable type (e.g., string | null), you MUST\\nuse the `IOneOf` structure:\\n\\n```typescript\\n{\\n  \\\"oneOf\\\": [{ \\\"type\\\": \\\"string\\\" }, { \\\"type\\\": \\\"null\\\" }]\\n}\\n```\\n\\nNEVER use array notation in the type field. The type field is a\\ndiscriminator that accepts only a single string value.\",\"type\":\"string\",\"enum\":[\"string\"]}},\"required\":[\"type\"]},\"AutoBeOpenApi.IRequestBody\":{\"description\":\"Request body information of OpenAPI operation.\\n\\nThis interface defines the structure for request bodies in API routes. It\\ncorresponds to the requestBody section in OpenAPI specifications, providing\\nboth a description and schema reference for the request payload.\\n\\nThe content-type for all request bodies is always `application/json`. Even\\nwhen file uploading is required, don't use `multipart/form-data` or\\n`application/x-www-form-urlencoded` content types. Instead, just define an\\nURI string property in the request body schema.\\n\\nNote that, all body schemas must be transformable to a\\n{@link AutoBeOpenApi.IJsonSchema.IReference reference} type defined in the\\n{@link AutoBeOpenApi.IComponents.schemas components section} as an\\n{@link AutoBeOpenApi.IJsonSchema.IObject object} type.\\n\\nIn OpenAPI, this might represent:\\n\\n```json\\n{\\n  \\\"requestBody\\\": {\\n    \\\"description\\\": \\\"Creation info of the order\\\",\\n    \\\"content\\\": {\\n      \\\"application/json\\\": {\\n        \\\"schema\\\": {\\n          \\\"$ref\\\": \\\"#/components/schemas/IShoppingOrder.ICreate\\\"\\n        }\\n      }\\n    }\\n  }\\n}\\n```\",\"type\":\"object\",\"properties\":{\"description\":{\"description\":\"Description about the request body.\\n\\nMake short, concise and clear description about the request body.\\n\\n> MUST be written in English. Never use other languages.\",\"type\":\"string\"},\"typeName\":{\"description\":\"Request body type name.\\n\\nThis specifies the data structure expected in the request body, that will\\nbe transformed to {@link AutoBeOpenApi.IJsonSchema.IReference reference}\\ntype in the {@link AutoBeOpenApi.IComponents.schemas components section}\\nas an {@link AutoBeOpenApi.IJsonSchema.Object object} type.\\n\\nHere is the naming convention for the request body type:\\n\\n- `IEntityName.ICreate`: Request body for creation operations (POST)\\n- `IEntityName.IUpdate`: Request body for update operations (PUT)\\n- `IEntityName.IRequest`: Request parameters for list operations (often\\n  with search/pagination)\\n\\nWhat you write:\\n\\n```json\\n{\\n  \\\"typeName\\\": \\\"IShoppingOrder.ICreate\\\"\\n}\\n```\\n\\nTransformed to:\\n\\n```json\\n{\\n  \\\"schema\\\": {\\n    \\\"$ref\\\": \\\"#/components/schemas/IShoppingOrder.ICreate\\\"\\n  }\\n}\\n```\",\"type\":\"string\"}},\"required\":[\"description\",\"typeName\"]},\"AutoBeOpenApi.IResponseBody\":{\"description\":\"Response body information for OpenAPI operation.\\n\\nThis interface defines the structure of a successful response from an API\\noperation. It provides a description of the response and a schema reference\\nto define the returned data structure.\\n\\nThe content-type for all responses is always `application/json`. Even when\\nfile downloading is required, don't use `application/octet-stream` or\\n`multipart/form-data` content types. Instead, just define an URI string\\nproperty in the response body schema.\\n\\nIn OpenAPI, this might represent:\\n\\n```json\\n{\\n  \\\"responses\\\": {\\n    \\\"200\\\": {\\n      \\\"description\\\": \\\"Order information\\\",\\n      \\\"content\\\": {\\n        \\\"application/json\\\": {\\n          \\\"schema\\\": { \\\"$ref\\\": \\\"#/components/schemas/IShoppingOrder\\\" }\\n        }\\n      }\\n    }\\n  }\\n}\\n```\",\"type\":\"object\",\"properties\":{\"description\":{\"description\":\"Description about the response body.\\n\\nMake short, concise and clear description about the response body.\\n\\n> MUST be written in English. Never use other languages.\",\"type\":\"string\"},\"typeName\":{\"description\":\"Response body's data type.\\n\\nSpecifies the structure of the returned data (response body), that will\\nbe transformed to {@link AutoBeOpenApi.IJsonSchema.IReference} type in the\\n{@link AutoBeOpenApi.IComponents.schemas components section} as an\\n{@link AutoBeOpenApi.IJsonSchema.IObject object} type.\\n\\nHere is the naming convention for the response body type:\\n\\n- `IEntityName`: Main entity with detailed information (e.g.,\\n  `IShoppingSale`)\\n- `IEntityName.ISummary`: Simplified response version with essential\\n  properties\\n- `IEntityName.IInvert`: Alternative view of an entity from a different\\n  perspective\\n- `IPageIEntityName`: Paginated results container with `pagination` and\\n  `data` properties\\n\\nWhat you write:\\n\\n```json\\n{\\n  \\\"typeName\\\": \\\"IShoppingOrder\\\"\\n}\\n```\\n\\nTransformed to:\\n\\n```json\\n{\\n  \\\"schema\\\": {\\n    \\\"$ref\\\": \\\"#/components/schemas/IShoppingOrder\\\"\\n  }\\n}\\n```\",\"type\":\"string\"}},\"required\":[\"description\",\"typeName\"]},\"AutoBeOpenApi.IPrerequisite\":{\"description\":\"Prerequisite API operation dependency.\\n\\n`IPrerequisite` defines a dependency relationship between API operations,\\nspecifying that certain endpoints must be successfully called before the\\ncurrent operation can proceed. This ensures proper resource validation,\\nstate checking, and data availability in complex API workflows.\\n\\n## CRITICAL WARNING: Authentication is NOT a Prerequisite\\n\\n**NEVER use prerequisites for authentication or authorization checks!**\\n\\nPrerequisites are ONLY for business logic dependencies such as:\\n\\n- Checking if a resource exists\\n- Verifying resource state\\n- Loading required data\\n\\nDo NOT create prerequisites for:\\n\\n- Login/authentication endpoints\\n- Token validation\\n- Permission checks\\n- User authorization verification\\n\\nAuthentication is handled separately via the `authorizationActor` field on\\nthe operation itself. Mixing authentication with business prerequisites\\ncreates confusion and incorrect test scenarios.\\n\\n## Core Concept\\n\\nPrerequisites create an execution dependency graph for API operations. They\\nexplicitly declare which APIs must succeed before attempting the current\\noperation, preventing invalid states and ensuring data consistency.\\n\\n## Structure\\n\\nEach prerequisite consists of:\\n\\n1. **endpoint**: The API endpoint that must be called first\\n2. **description**: Clear explanation of why this prerequisite is required\\n\\n## Common Use Cases\\n\\n### 1. Resource Existence Validation\\n\\n```typescript\\n{\\n  \\\"endpoint\\\": { \\\"path\\\": \\\"/users/{userId}\\\", \\\"method\\\": \\\"get\\\" },\\n  \\\"description\\\": \\\"User must exist before updating their profile\\\"\\n}\\n```\\n\\n### 2. Parent-Child Relationships\\n\\n```typescript\\n{\\n  \\\"endpoint\\\": { \\\"path\\\": \\\"/posts/{postId}\\\", \\\"method\\\": \\\"get\\\" },\\n  \\\"description\\\": \\\"Post must exist before adding comments\\\"\\n}\\n```\\n\\n### 3. State Prerequisites\\n\\n```typescript\\n{\\n  \\\"endpoint\\\": { \\\"path\\\": \\\"/orders/{orderId}/status\\\", \\\"method\\\": \\\"get\\\" },\\n  \\\"description\\\": \\\"Order must be in 'confirmed' state before shipping\\\"\\n}\\n```\\n\\n### 4. Business Logic Dependencies\\n\\n```typescript\\n{\\n  \\\"endpoint\\\": {\\n    \\\"path\\\": \\\"/inventory/{productId}/stock\\\",\\n    \\\"method\\\": \\\"get\\\"\\n  },\\n  \\\"description\\\": \\\"Product must have sufficient stock before creating order\\\"\\n}\\n```\\n\\n## Implementation Guidelines\\n\\n1. **Clear Descriptions**: Always explain WHY the prerequisite is needed\\n2. **Minimal Dependencies**: Only include truly necessary prerequisites\\n3. **Logical Order**: If multiple prerequisites exist, order them logically\\n4. **Error Context**: Description should help understand failure scenarios\\n5. **No Authentication**: Prerequisites must NEVER be authentication checks\\n\\n## Test Generation Usage\\n\\nThe Test Agent utilizes prerequisites to:\\n\\n- Set up test data in the correct sequence\\n- Generate realistic test scenarios\\n- Create both positive and negative test cases\\n- Ensure proper cleanup in reverse dependency order\\n\\n## Best Practices\\n\\n- Keep prerequisite chains as short as possible for performance\\n- Consider caching prerequisite results when safe to do so\\n- Ensure prerequisite descriptions are specific, not generic\\n- Validate that circular dependencies don't exist\\n- Document any side effects of prerequisite calls\\n- NEVER use for authentication/authorization validation\",\"type\":\"object\",\"properties\":{\"endpoint\":{\"description\":\"The API endpoint that must be called before the main operation.\\n\\nThis specifies the exact HTTP method and path of the prerequisite API.\\nThe endpoint must be a valid operation defined elsewhere in the API\\nspecification. Path parameters in the prerequisite endpoint can reference\\nthe same parameters available in the main operation.\",\"$ref\":\"#/$defs/AutoBeOpenApi.IEndpoint\"},\"description\":{\"description\":\"Clear description of why this prerequisite is required.\\n\\nThis description should explain:\\n\\n- What validation or check this prerequisite performs\\n- What state or condition must be satisfied\\n- What happens if this prerequisite fails\\n- Any specific data from the prerequisite used by the main operation\\n\\nThe description helps developers understand the dependency relationship\\nand aids in debugging when prerequisites fail.\\n\\nGuidelines for good descriptions:\\n\\n- Be specific about the requirement (e.g., \\\"must be in 'active' state\\\")\\n- Explain business logic constraints (e.g., \\\"budget must not be exceeded\\\")\\n- Explain data dependencies (e.g., \\\"provides pricing information needed\\\")\\n- Keep it concise but complete\\n\\n> MUST be written in English. Never use other languages.\",\"type\":\"string\"}},\"required\":[\"endpoint\",\"description\"]}}}}}"
+    },
+    {
+      "role": "assistant",
+      "content": "<!--\nfilename: PRELIMINARY_PRISMA_SCHEMA_LOADED.md\n-->\n# Loaded Prisma Schemas\n\nThe following Prisma database models have been loaded into your context through previous `process()` calls with `type: \"getPrismaSchemas\"`.\n\n\n\nThese schema definitions are now available for you to reference. Use them to:\n- Verify actual field names and data types in the database\n- Check relationship definitions (one-to-one, one-to-many, many-to-many)\n- Understand unique constraints, indexes, and validation rules\n- Confirm which fields exist (avoid assuming common fields like `deleted_at` or `created_by`)\n- Design API operations that accurately reflect the database structure\n\n> **Note**: These schemas are already in your conversation history. Reference them directly without calling `process()` again for the same model names.\n\n## Prisma Schema Files\n\n```prisma\n[object Object]\n``              "
+    },
+    {
+      "role": "system",
+      "content": "<!-- filename: PRELIMINARY_PRISMA_SCHEMA.md -->\n # preliminary loading rules (prisma schemas)\n\n - do not request already-loaded prisma schemas.\n - only request schema names listed under \"not yet loaded\".\n - if you need fields/relations/constraints, request the actual schema; do not guess.\n\n not yet loaded (available on request):\n Name | Stance | Summary\n-----|--------|---------\nproxmox_paywall_configurations | primary | System-wide configuration settings for the proxmox paywall system\nproxmox_paywall_system_events | snapshot | Audit and system event logs capturing significant actions and changes within the proxmox paywall system\nproxmox_paywall_admins | primary | System administrators with full control over user management, lease provisioning, container lifecycle management, and system settings\nproxmox_paywall_admin_sessions | subsidiary | Authentication sessions for system administrators\nproxmox_paywall_users | primary | Authenticated users who lease containers and manage their own leases\nproxmox_paywall_user_sessions | subsidiary | Authentication sessions for authenticated users\nproxmox_paywall_leases | primary | Core lease information for containers provisioned through Proxmox VE\nproxmox_paywall_lease_renewals | snapshot | Historical records of lease renewal requests for Proxmox container leases\nproxmox_paywall_container_statuses | primary | Operational statuses of provisioned containers managed via Proxmox VE\nproxmox_paywall_vnc_proxy_sessions | primary | VNC proxy session records for Proxmox VE containers"
+    },
+    {
+      "role": "system",
+      "content": "<!-- filename: INTERFACE_OPERATION_REVIEW.md -->\n # api operation reviewer\n\n you review generated operations for security, prisma/schema alignment, and logical/semantic consistency.\n\n <inputs>\n - use already-loaded conversation data first.\n - if required info is missing (requirements or prisma fields), call `process()` to fetch it; do not guess.\n </inputs>\n\n <output>\n - always call `process({ thinking, request })`.\n - on completion, use:\n `request = { type: \"complete\", think: { review, plan }, content: operations }`.\n </output>\n\n <completion schema (minimal)>\n ```typescript\n export namespace IAutoBeInterfaceOperationReviewApplication {\n export interface IProps {\n thinking: string\n request: IComplete | unknown\n }\n export interface IComplete {\n type: \"complete\"\n think: { review: string; plan: string }\n content: AutoBeOpenApi.IOperation[]\n }\n }\n export namespace AutoBeOpenApi {\n export interface IOperation {\n path: string\n method: string\n description: string\n parameters?: Array<unknown>\n requestBody?: unknown\n responseBody?: unknown\n authorizationType: \"login\"|\"join\"|\"refresh\"|null\n authorizationActor: string|null\n name: string\n prerequisites: Array<unknown>\n }\n }\n ```\n </completion schema>\n\n <review checklist>\n - required fields present; no undefined required fields.\n - security: no passwords/tokens/secrets in responses; enforce auth boundaries; least-privilege authorization.\n - prisma/schema: referenced fields/relations exist; types/formats match; no invented properties.\n - semantics: list endpoints return arrays/paged results; single endpoints return single; http method matches behavior.\n - path/params: every path param is used; no unused/meaningless params; consistent naming.\n - patch: use only for complex updates; otherwise use put/post patterns as per system conventions.\n - remove operations that are impossible/unsafe/contradict requirements or schema.\n </review checklist>"
+    },
+    {
+      "role": "assistant",
+      "content": "Review the following API operations:\n\n```json\n[{\"path\":\"/proxmoxPaywall/user/proxmox-tasks\",\"method\":\"patch\",\"description\":\"Retrieve a filtered and paginated list of Proxmox tasks from the system. This operation allows authenticated users to query and monitor various background tasks related to Proxmox VE operations.\\n\\nThe operation supports complex search, sorting, and pagination options, enabling efficient filtering of tasks by status, creation time, and task type.\\n\\nSecurity: Access is restricted to authenticated users who have permission to view Proxmox task statuses and logs. All task data corresponds directly to Proxmox internal task tracking mechanisms, providing real-time operational insight.\\n\\nThis operation integrates with the proxmox_paywall_proxmox_tasks Prisma model, reflecting the current schema design and field definitions.\",\"parameters\":[],\"requestBody\":{\"description\":\"Search filter and pagination parameters for Proxmox task list retrieval\",\"typeName\":\"IProxmoxPaywallProxmoxTask.IRequest\"},\"responseBody\":{\"description\":\"Paginated list of Proxmox task summaries matching the search criteria\",\"typeName\":\"IPageIProxmoxPaywallProxmoxTask.ISummary\"},\"authorizationActors\":[\"user\",\"admin\"],\"name\":\"index\",\"authorizationType\":null,\"authorizationActor\":\"user\",\"prerequisites\":[]},{\"path\":\"/proxmoxPaywall/admin/proxmox-tasks\",\"method\":\"patch\",\"description\":\"Retrieve a filtered and paginated list of Proxmox tasks from the system. This operation allows authenticated users to query and monitor various background tasks related to Proxmox VE operations.\\n\\nThe operation supports complex search, sorting, and pagination options, enabling efficient filtering of tasks by status, creation time, and task type.\\n\\nSecurity: Access is restricted to authenticated users who have permission to view Proxmox task statuses and logs. All task data corresponds directly to Proxmox internal task tracking mechanisms, providing real-time operational insight.\\n\\nThis operation integrates with the proxmox_paywall_proxmox_tasks Prisma model, reflecting the current schema design and field definitions.\",\"parameters\":[],\"requestBody\":{\"description\":\"Search filter and pagination parameters for Proxmox task list retrieval\",\"typeName\":\"IProxmoxPaywallProxmoxTask.IRequest\"},\"responseBody\":{\"description\":\"Paginated list of Proxmox task summaries matching the search criteria\",\"typeName\":\"IPageIProxmoxPaywallProxmoxTask.ISummary\"},\"authorizationActors\":[\"user\",\"admin\"],\"name\":\"index\",\"authorizationType\":null,\"authorizationActor\":\"admin\",\"prerequisites\":[]},{\"path\":\"/proxmoxPaywall/user/proxmox-tasks/{proxmoxTaskId}\",\"method\":\"get\",\"description\":\"Retrieve detailed information and status of a specific Proxmox task by its ID.\\n\\nThis read-only operation provides comprehensive details including task progress, status, errors, and related metadata.\\n\\nSecurity: Access restricted to authenticated users authorized to view task details.\\n\\nThis operation is directly mapped to the proxmox_paywall_proxmox_tasks Prisma model and uses the ID as the unique identifier for fetching the task record.\",\"parameters\":[{\"name\":\"proxmoxTaskId\",\"description\":\"Unique identifier of the Proxmox task\",\"schema\":{\"type\":\"string\",\"format\":\"uuid\"},\"in\":\"path\",\"required\":true}],\"requestBody\":null,\"responseBody\":{\"description\":\"Detailed information of the specified Proxmox task\",\"typeName\":\"IProxmoxPaywallProxmoxTask\"},\"authorizationActors\":[\"user\",\"admin\"],\"name\":\"at\",\"authorizationType\":null,\"authorizationActor\":\"user\",\"prerequisites\":[]},{\"path\":\"/proxmoxPaywall/admin/proxmox-tasks/{proxmoxTaskId}\",\"method\":\"get\",\"description\":\"Retrieve detailed information and status of a specific Proxmox task by its ID.\\n\\nThis read-only operation provides comprehensive details including task progress, status, errors, and related metadata.\\n\\nSecurity: Access restricted to authenticated users authorized to view task details.\\n\\nThis operation is directly mapped to the proxmox_paywall_proxmox_tasks Prisma model and uses the ID as the unique identifier for fetching the task record.\",\"parameters\":[{\"name\":\"proxmoxTaskId\",\"description\":\"Unique identifier of the Proxmox task\",\"schema\":{\"type\":\"string\",\"format\":\"uuid\"},\"in\":\"path\",\"required\":true}],\"requestBody\":null,\"responseBody\":{\"description\":\"Detailed information of the specified Proxmox task\",\"typeName\":\"IProxmoxPaywallProxmoxTask\"},\"authorizationActors\":[\"user\",\"admin\"],\"name\":\"at\",\"authorizationType\":null,\"authorizationActor\":\"admin\",\"prerequisites\":[]}]\n```"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Review the following API operations please"
+        }
+      ]
+    },
+    {
+      "role": "system",
+      "content": "# function calling\n\n - build tool calls that strictly match the provided json schema (types, required fields, enums/consts).\n - do not invent properties; do not omit required fields; use null only when schema allows it.\n - for union types, set the correct discriminator (`type`) and include only the fields for that branch.\n - if info is missing to build a valid call, request the minimal missing data first.\n - output only the tool call arguments; keep text brief and in english when the schema requires it."
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "process",
+        "description": "Process operation review task or preliminary data requests.\n\nAnalyzes operations for security vulnerabilities, schema compliance,\nlogical co",
+        "parameters": {
+          "description": "Request containing either preliminary data request or complete\ntask\n\n------------------------------\n\nCurrent Type: {@link IAutoBeInterfaceOperationReviewApplication.IProps}",
+          "type": "object",
+          "properties": {
+            "thinking": {
+              "description": "Think before you act.\n\nBefore requesting preliminary data or completing your task, reflect on\nyour current state and explain your reasoning:\n\nFor preliminary requests (getAnalysisFiles, getPrismaSchemas, etc.):\n\n- What c",
+              "type": "string"
+            },
+            "request": {
+              "description": "Type discriminator for the request.\n\nDetermines which action to perform: preliminary data retrieval\n(getAnalysisFiles, getPrismaSchemas) or final operation review\n(complete). When preliminary returns empty array, that ty",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/IAutoBePreliminaryGetPreviousAnalysisFiles"
+                },
+                {
+                  "$ref": "#/$defs/IAutoBePreliminaryGetAnalysisFiles"
+                },
+                {
+                  "$ref": "#/$defs/IAutoBePreliminaryGetPreviousPrismaSchemas"
+                },
+                {
+                  "$ref": "#/$defs/IAutoBePreliminaryGetPrismaSchemas"
+                },
+                {
+                  "$ref": "#/$defs/IAutoBePreliminaryGetPreviousInterfaceOperations"
+                },
+                {
+                  "$ref": "#/$defs/IAutoBeInterfaceOperationReviewApplication.IComplete"
+                }
+              ],
+              "x-discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "getPreviousAnalysisFiles": "#/$defs/IAutoBePreliminaryGetPreviousAnalysisFiles",
+                  "getAnalysisFiles": "#/$defs/IAutoBePreliminaryGetAnalysisFiles",
+                  "getPreviousPrismaSchemas": "#/$defs/IAutoBePreliminaryGetPreviousPrismaSchemas",
+                  "getPrismaSchemas": "#/$defs/IAutoBePreliminaryGetPrismaSchemas",
+                  "getPreviousInterfaceOperations": "#/$defs/IAutoBePreliminaryGetPreviousInterfaceOperations",
+                  "complete": "#/$defs/IAutoBeInterfaceOperationReviewApplication.IComplete"
+                }
+              }
+            }
+          },
+          "required": [
+            "thinking",
+            "request"
+          ],
+          "additionalProperties": false,
+          "$defs": {
+            "IAutoBePreliminaryGetPreviousAnalysisFiles": {
+              "description": "Request to retrieve analysis files from a previous version.\n\nThis type is used to load analysis files (requirements documents) that were\ngenerated in a **previous version** of the AutoBE generation pipeline.\nThis is NOT",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Type discriminator for the request.\n\nDetermines which action to perform: preliminary data retrieval or actual\ntask execution. Value \"getPreviousAnalysisFiles\" indicates this is a\npreliminary data request for analysis fil",
+                  "type": "string",
+                  "enum": [
+                    "getPreviousAnalysisFiles"
+                  ]
+                },
+                "fileNames": {
+                  "description": "List of analysis file names to retrieve from the previous version.\n\nThese are file names that were generated in a previous version and are\nneeded as reference context for the current regeneration.\n\n**Important Notes:**",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "fileNames"
+              ]
+            },
+            "IAutoBePreliminaryGetAnalysisFiles": {
+              "description": "Request to retrieve requirements analysis files for context.\n\nThis type is used in the preliminary phase to request specific analysis files\nthat provide business requirements and domain context.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Type discriminator for the request.\n\nDetermines which action to perform: preliminary data retrieval or actual\ntask execution. Value \"getAnalysisFiles\" indicates this is a preliminary\ndata request for analysis files.",
+                  "type": "string",
+                  "enum": [
+                    "getAnalysisFiles"
+                  ]
+                },
+                "fileNames": {
+                  "description": "List of analysis file names to retrieve.\n\nFile names from the analyze phase containing requirements, use cases, and\nbusiness logic documentation.\n\ncritical: DO NOT request the same file names that you have already\nreques",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "fileNames"
+              ]
+            },
+            "IAutoBePreliminaryGetPreviousPrismaSchemas": {
+              "description": "Request to retrieve Prisma schemas from a previous version.\n\nThis type is used to load Prisma database schema definitions that were\ngenerated in a **previous version** of the AutoBE generation pipeline.\nThis is NOT about",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Type discriminator for the request.\n\nDetermines which action to perform: preliminary data retrieval or actual\ntask execution. Value \"getPreviousPrismaSchemas\" indicates this is a\npreliminary data request for Prisma schem",
+                  "type": "string",
+                  "enum": [
+                    "getPreviousPrismaSchemas"
+                  ]
+                },
+                "schemaNames": {
+                  "description": "List of Prisma table names to retrieve from the previous version.\n\nThese are table schema names that were generated in a previous version\nand are needed as reference context for the current regeneration.\n\n**Important Not",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "schemaNames"
+              ]
+            },
+            "IAutoBePreliminaryGetPrismaSchemas": {
+              "description": "Request to retrieve Prisma database schema definitions for context.\n\nThis type is used in the preliminary phase to request specific Prisma table\nschemas needed for generating type-safe API operations.",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Type discriminator for the request.\n\nDetermines which action to perform: preliminary data retrieval or actual\ntask execution. Value \"getPrismaSchemas\" indicates this is a preliminary\ndata request for Prisma schemas.",
+                  "type": "string",
+                  "enum": [
+                    "getPrismaSchemas"
+                  ]
+                },
+                "schemaNames": {
+                  "description": "List of Prisma table names to retrieve.\n\nTable names from the Prisma schema file representing database entities\n(e.g., \"user\", \"post\", \"comment\").\n\ncritical: DO NOT request the same schema names that you have already\nreq",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "schemaNames"
+              ]
+            },
+            "IAutoBePreliminaryGetPreviousInterfaceOperations": {
+              "description": "Request to retrieve interface operations from a previous version.\n\nThis type is used to load API operation definitions that were generated in a\n**previous version** of the AutoBE generation pipeline. This is NOT about\nre",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Type discriminator for the request.\n\nDetermines which action to perform: preliminary data retrieval or actual\ntask execution. Value \"getPreviousInterfaceOperations\" indicates this is a\npreliminary data request for interf",
+                  "type": "string",
+                  "enum": [
+                    "getPreviousInterfaceOperations"
+                  ]
+                },
+                "endpoints": {
+                  "description": "List of API operation endpoints to retrieve from the previous version.\n\nThese are endpoint identifiers (method + path) that were generated in a\nprevious version and are needed as reference context for the current\nregener",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AutoBeOpenApi.IEndpoint"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "endpoints"
+              ]
+            },
+            "AutoBeOpenApi.IEndpoint": {
+              "description": "API endpoint information.",
+              "type": "object",
+              "properties": {
+                "path": {
+                  "description": "HTTP path of the API operation.\n\nThe URL path for accessing this API operation, using path parameters\nenclosed in curly braces (e.g., `/shoppings/customers/sales/{saleId}`).\n\nIt must be corresponded to the {@link paramet",
+                  "type": "string"
+                },
+                "method": {
+                  "description": "HTTP method of the API operation.\n\n**important**: Methods must be written in lowercase only (e.g., \"get\",\nnot \"GET\").\n\nNote that, if the API operation has {@link requestBody}, method must not\nbe `get`.\n\nAlso, even though",
+                  "type": "string",
+                  "enum": [
+                    "get",
+                    "post",
+                    "patch",
+                    "put",
+                    "delete"
+                  ]
+                }
+              },
+              "required": [
+                "path",
+                "method"
+              ]
+            },
+            "IAutoBeInterfaceOperationReviewApplication.IComplete": {
+              "description": "Request to review and validate API operations.\n\nExecutes systematic operation review for quality and correctness, analyzing\nsecurity vulnerabilities, schema compliance, logical consistency, and\nstandard adherence. Output",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Type discriminator for the request.\n\nDetermines which action to perform: preliminary data retrieval or actual\ntask execution. Value \"complete\" indicates this is the final task\nexecution request.",
+                  "type": "string",
+                  "enum": [
+                    "complete"
+                  ]
+                },
+                "think": {
+                  "description": "Comprehensive thinking process for API operation review.\n\nEncapsulates the agent's analytical review findings and actionable\nimprovement plan. This structured thinking process ensures systematic\nevaluation of API operati",
+                  "$ref": "#/$defs/IAutoBeInterfaceOperationReviewApplication.IThink"
+                },
+                "content": {
+                  "description": "Production-ready operations with all critical issues resolved.\n\nFinal API operations after systematic enhancement:\n\n- **Security Fixes Applied**: All authentication boundaries enforced,\n sensitive data removed from respo",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AutoBeOpenApi.IOperation"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "think",
+                "content"
+              ]
+            },
+            "IAutoBeInterfaceOperationReviewApplication.IThink": {
+              "description": "Structured thinking process for operation review.\n\nContains analytical review findings and improvement action plan organized\nfor systematic enhancement of the operations.",
+              "type": "object",
+              "properties": {
+                "review": {
+                  "description": "Comprehensive review analysis with prioritized findings.\n\nSystematic assessment organized by severity levels (critical, HIGH,\nMEDIUM, LOW):\n\n- **Security Analysis**: Authentication boundary violations, exposed\n passwords",
+                  "type": "string"
+                },
+                "plan": {
+                  "description": "Prioritized action plan for identified issues.\n\nStructured improvement strategy categorized by severity:\n\n- **Immediate Actions (critical)**: Security vulnerabilities that must be\n fixed before production (password expos",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "review",
+                "plan"
+              ]
+            },
+            "AutoBeOpenApi.IOperation": {
+              "description": "Operation of the Restful API.\n\nThis interface defines a single API endpoint with its HTTP {@link method},\n{@link path}, {@link parameters path parameters},\n{@link requestBody request body}, and {@link responseBody} struc",
+              "type": "object",
+              "properties": {
+                "authorizationType": {
+                  "description": "Authorization type of the API operation.\n\n- `\"login\"`: User login operations that validate credentials\n- `\"join\"`: User registration operations that create accounts\n- `\"refresh\"`: Token refresh operations that renew acce",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "join",
+                        "login",
+                        "refresh"
+                      ]
+                    }
+                  ]
+                },
+                "description": {
+                  "description": "Detailed description about the API operation.\n\nimportant: This field must be extensively detailed and must reference the\ndescription comments from the related Prisma DB schema tables and\ncolumns. The description should b",
+                  "type": "string"
+                },
+                "parameters": {
+                  "description": "List of path parameters.\n\nNote that, the {@link AutoBeOpenApi.IParameter.name identifier name} of\npath parameter must be corresponded to the\n{@link path API operation path}.\n\nFor example, if there's an API operation whic",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AutoBeOpenApi.IParameter"
+                  }
+                },
+                "requestBody": {
+                  "description": "Request body of the API operation.\n\nDefines the payload structure for the request. Contains a description and\nschema reference to define the expected input data.\n\nShould be `null` for operations that don't require a requ",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/AutoBeOpenApi.IRequestBody"
+                    }
+                  ]
+                },
+                "responseBody": {
+                  "description": "Response body of the API operation.\n\nDefines the structure of the successful response data. Contains a\ndescription and schema reference for the returned data.\n\nShould be null for operations that don't return any data.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/AutoBeOpenApi.IResponseBody"
+                    }
+                  ]
+                },
+                "authorizationActor": {
+                  "description": "Authorization actor required to access this API operation.\n\nThis field specifies which user actor is allowed to access this endpoint.\nThe actor name must correspond exactly to the actual actors defined in\nyour system's P",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "description": "@minLength 1\n@pattern ^[a-z][a-zA-Z0-9]*$"
+                    }
+                  ]
+                },
+                "name": {
+                  "description": "Functional name of the API endpoint.\n\nThis is a semantic identifier that represents the primary function or\npurpose of the API endpoint. It serves as a canonical name that can be\nused for code generation, SDK method name",
+                  "type": "string"
+                },
+                "prerequisites": {
+                  "description": "Prerequisites for this API operation.\n\nThe `prerequisites` field defines API operations that must be\nsuccessfully executed before this operation can be performed. This\ncreates an explicit dependency chain between API end",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/AutoBeOpenApi.IPrerequisite"
+                  }
+                },
+                "path": {
+                  "description": "HTTP path of the API operation.\n\nThe URL path for accessing this API operation, using path parameters\nenclosed in curly braces (e.g., `/shoppings/customers/sales/{saleId}`).\n\nIt must be corresponded to the {@link paramet",
+                  "type": "string"
+                },
+                "method": {
+                  "description": "HTTP method of the API operation.\n\n**important**: Methods must be written in lowercase only (e.g., \"get\",\nnot \"GET\").\n\nNote that, if the API operation has {@link requestBody}, method must not\nbe `get`.\n\nAlso, even though",
+                  "type": "string",
+                  "enum": [
+                    "get",
+                    "post",
+                    "patch",
+                    "put",
+                    "delete"
+                  ]
+                }
+              },
+              "required": [
+                "authorizationType",
+                "description",
+                "parameters",
+                "requestBody",
+                "responseBody",
+                "authorizationActor",
+                "name",
+                "prerequisites",
+                "path",
+                "method"
+              ]
+            },
+            "AutoBeOpenApi.IParameter": {
+              "description": "Path parameter information for API routes.\n\nThis interface defines a path parameter that appears in the URL of an API\nendpoint. Path parameters are enclosed in curly braces in the\n{@link AutoBeOpenApi.IOperation.path ope",
+              "type": "object",
+              "properties": {
+                "name": {
+                  "description": "Identifier name of the path parameter.\n\nThis name must match exactly with the parameter name in the route path.\nIt must be corresponded to the\n{@link AutoBeOpenApi.IOperation.path API operation path}.\n\nmust use camelCase",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Description about the path parameter.\n\nMake short, concise and clear description about the path parameter.\n\n> must be written in English. Never use other languages.",
+                  "type": "string"
+                },
+                "schema": {
+                  "description": "Type schema of the path parameter.\n\nPath parameters are typically primitive types like\n{@link AutoBeOpenApi.IJsonSchema.IString strings},\n{@link AutoBeOpenApi.IJsonSchema.IInteger integers},\n{@link AutoBeOpenApi.IJsonSch",
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/AutoBeOpenApi.IJsonSchema.INumber"
+                    },
+                    {
+                      "$ref": "#/$defs/AutoBeOpenApi.IJsonSchema.IInteger"
+                    },
+                    {
+                      "$ref": "#/$defs/AutoBeOpenApi.IJsonSchema.IString"
+                    }
+                  ],
+                  "x-discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "number": "#/$defs/AutoBeOpenApi.IJsonSchema.INumber",
+                      "integer": "#/$defs/AutoBeOpenApi.IJsonSchema.IInteger",
+                      "string": "#/$defs/AutoBeOpenApi.IJsonSchema.IString"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "description",
+                "schema"
+              ]
+            },
+            "AutoBeOpenApi.IJsonSchema.INumber": {
+              "description": "Number (double) type info.",
+              "type": "object",
+              "properties": {
+                "minimum": {
+                  "description": "Minimum value restriction.",
+                  "type": "number"
+                },
+                "maximum": {
+                  "description": "Maximum value restriction.",
+                  "type": "number"
+                },
+                "exclusiveMinimum": {
+                  "description": "Exclusive minimum value restriction.",
+                  "type": "number"
+                },
+                "exclusiveMaximum": {
+                  "description": "Exclusive maximum value restriction.",
+                  "type": "number"
+                },
+                "multipleOf": {
+                  "description": "Multiple of value restriction.\n\n@exclusiveMinimum 0",
+                  "type": "number"
+                },
+                "type": {
+                  "description": "Discriminator value of the type.\n\ncritical: This must be a SINGLE string value, NOT an array. The type\nfield identifies the JSON Schema type and must be exactly one of:\n\"boolean\", \"integer\", \"number\", \"string\", \"array\",",
+                  "type": "string",
+                  "enum": [
+                    "number"
+                  ]
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "AutoBeOpenApi.IJsonSchema.IInteger": {
+              "description": "Integer type info.",
+              "type": "object",
+              "properties": {
+                "minimum": {
+                  "description": "Minimum value restriction.",
+                  "type": "integer"
+                },
+                "maximum": {
+                  "description": "Maximum value restriction.",
+                  "type": "integer"
+                },
+                "exclusiveMinimum": {
+                  "description": "Exclusive minimum value restriction.",
+                  "type": "number"
+                },
+                "exclusiveMaximum": {
+                  "description": "Exclusive maximum value restriction.",
+                  "type": "number"
+                },
+                "multipleOf": {
+                  "description": "Multiple of value restriction.\n\n@exclusiveMinimum 0",
+                  "type": "integer"
+                },
+                "type": {
+                  "description": "Discriminator value of the type.\n\ncritical: This must be a SINGLE string value, NOT an array. The type\nfield identifies the JSON Schema type and must be exactly one of:\n\"boolean\", \"integer\", \"number\", \"string\", \"array\",",
+                  "type": "string",
+                  "enum": [
+                    "integer"
+                  ]
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "AutoBeOpenApi.IJsonSchema.IString": {
+              "description": "String type info.",
+              "type": "object",
+              "properties": {
+                "format": {
+                  "description": "Format restriction.",
+                  "type": "string",
+                  "enum": [
+                    "date-time",
+                    "url",
+                    "uuid",
+                    "uri",
+                    "password",
+                    "regex",
+                    "email",
+                    "hostname",
+                    "idn-email",
+                    "idn-hostname",
+                    "iri",
+                    "iri-reference",
+                    "ipv4",
+                    "ipv6",
+                    "uri-reference",
+                    "uri-template",
+                    "date",
+                    "time",
+                    "duration",
+                    "json-pointer",
+                    "relative-json-pointer"
+                  ]
+                },
+                "pattern": {
+                  "description": "Pattern restriction.",
+                  "type": "string"
+                },
+                "contentMediaType": {
+                  "description": "Content media type restriction.",
+                  "type": "string"
+                },
+                "minLength": {
+                  "description": "Minimum length restriction.\n\n@minimum 0",
+                  "type": "integer"
+                },
+                "maxLength": {
+                  "description": "Maximum length restriction.\n\n@minimum 0",
+                  "type": "integer"
+                },
+                "type": {
+                  "description": "Discriminator value of the type.\n\ncritical: This must be a SINGLE string value, NOT an array. The type\nfield identifies the JSON Schema type and must be exactly one of:\n\"boolean\", \"integer\", \"number\", \"string\", \"array\",",
+                  "type": "string",
+                  "enum": [
+                    "string"
+                  ]
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "AutoBeOpenApi.IRequestBody": {
+              "description": "Request body information of OpenAPI operation.\n\nThis interface defines the structure for request bodies in API routes. It\ncorresponds to the requestBody section in OpenAPI specifications, providing\nboth a description and",
+              "type": "object",
+              "properties": {
+                "description": {
+                  "description": "Description about the request body.\n\nMake short, concise and clear description about the request body.\n\n> must be written in English. Never use other languages.",
+                  "type": "string"
+                },
+                "typeName": {
+                  "description": "Request body type name.\n\nThis specifies the data structure expected in the request body, that will\nbe transformed to {@link AutoBeOpenApi.IJsonSchema.IReference reference}\ntype in the {@link AutoBeOpenApi.IComponents.sch",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description",
+                "typeName"
+              ]
+            },
+            "AutoBeOpenApi.IResponseBody": {
+              "description": "Response body information for OpenAPI operation.\n\nThis interface defines the structure of a successful response from an API\noperation. It provides a description of the response and a schema reference\nto define the return",
+              "type": "object",
+              "properties": {
+                "description": {
+                  "description": "Description about the response body.\n\nMake short, concise and clear description about the response body.\n\n> must be written in English. Never use other languages.",
+                  "type": "string"
+                },
+                "typeName": {
+                  "description": "Response body's data type.\n\nSpecifies the structure of the returned data (response body), that will\nbe transformed to {@link AutoBeOpenApi.IJsonSchema.IReference} type in the\n{@link AutoBeOpenApi.IComponents.schemas comp",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description",
+                "typeName"
+              ]
+            },
+            "AutoBeOpenApi.IPrerequisite": {
+              "description": "Prerequisite API operation dependency.\n\n`IPrerequisite` defines a dependency relationship between API operations,\nspecifying that certain endpoints must be successfully called before the\ncurrent operation can proceed. Th",
+              "type": "object",
+              "properties": {
+                "endpoint": {
+                  "description": "The API endpoint that must be called before the main operation.\n\nThis specifies the exact HTTP method and path of the prerequisite API.\nThe endpoint must be a valid operation defined elsewhere in the API\nspecification. P",
+                  "$ref": "#/$defs/AutoBeOpenApi.IEndpoint"
+                },
+                "description": {
+                  "description": "Clear description of why this prerequisite is required.\n\nThis description should explain:\n\n- What validation or check this prerequisite performs\n- What state or condition must be satisfied\n- What happens if this prerequi",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "endpoint",
+                "description"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "model": "gpt-4.1-mini"
+}

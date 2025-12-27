@@ -32,13 +32,14 @@ export const enum AutoBeConfigConstant {
   RETRY = 4,
 
   /**
-   * Batch count for parallel operation processing.
+   * Maximum elements per chunk when dividing operation lists.
    *
-   * Controls how many batches `divideArray` creates when splitting large
-   * operation lists for concurrent processing. Value of 2 provides optimal
-   * balance: parallelizes work to reduce latency while keeping batch sizes
-   * large enough for effective prompt caching. Higher values increase
-   * parallelism but reduce cache hit rates.
+   * This value is passed as `capacity` to `divideArray({ array, capacity })`
+   * and therefore controls the maximum chunk size (not the number of chunks).
+   *
+   * Smaller values increase the number of LLM calls (higher prompt overhead
+   * and latency) while larger values reduce call count but risk hitting context
+   * limits if each item carries large context.
    */
   INTERFACE_CAPACITY = 2,
 

@@ -1,0 +1,6 @@
+Prompt structure
+1. 1~2 sentences to establish role and high level task description
+2. Dynamic retrieved content
+3. Detailed task instructions
+4. Examples/n-shot (optional)
+5. Repeat critical instructions (particularly useful for very long prompts)

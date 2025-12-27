@@ -3,7 +3,7 @@
   "name": "@autobe/station",
   "version": "0.29.2",
   "description": "AutoBE Station",
-  "packageManager": "pnpm@10.6.4",
+  "packageManager": "pnpm@10.26.2",
   "scripts": {
     "build": "pnpm --filter=./packages/** --filter=./apps/** --filter=./test -r build",
     "package:latest": "pnpm --filter=./packages/** -r publish --tag latest",

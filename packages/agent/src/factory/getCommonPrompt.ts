@@ -11,7 +11,7 @@ export const getCommonPrompt = (
     config?.locale ?? locale.get(),
   )
     .replace("${timezone}", config?.timezone ?? timezone.get())
-    .replace("${datetime}", new Date().toISOString());
+    .replace("${datetime}", datetime.get());
 
 const locale = new Singleton(() =>
   is_node()
@@ -23,3 +23,5 @@ const locale = new Singleton(() =>
 const timezone = new Singleton(
   () => Intl.DateTimeFormat().resolvedOptions().timeZone,
 );
+
+const datetime = new Singleton(() => new Date().toISOString());

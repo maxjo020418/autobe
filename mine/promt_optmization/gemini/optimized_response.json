@@ -1,0 +1,100 @@
+{
+  "thinking": "Reviewed all provided operations mapped to proxmox_paywall_proxmox_tasks schema, including authorization actors and parameter usage. No additional schema or analysis files needed.",
+  "request": {
+    "type": "complete",
+    "think": {
+      "review": "# API Operation Review Reportnn## Executive Summaryn- Total Operations Reviewed: 4n- Operations Removed: 0n- Final Operation Count: 4n- Total Generated Operations (operations × avg actors): 6 (2 operations with 2 actors each for lists and details)n- Operation Volume Assessment: Reasonablen- Security Issues: 0 (Critical: 0, Major: 0)n- Logic Issues: 0 (Critical: 0, Major: 0)n- Schema Issues: 0n- Delete Pattern Issues: 0n- Over-Engineering Issues: 0n- Implementation Blocking Issues: 0n- Overall Risk Assessment: LOWnn**Critical Implementation Checks**:n- [x] All DELETE operations verified (no delete ops present)n- [x] All operation descriptions match schema capabilitiesn- [x] No impossible requirements detectedn- [x] Operation volume reasonable and appropriaten- [x] No unnecessary operations for system or auxiliary tablesnn## Detailed Review by Operationnn### PATCH /proxmoxPaywall/user/proxmox-tasks - indexn**Status**: Passnn**Prisma Schema Context**:nModel proxmox_paywall_proxmox_tasks represents Proxmox VE background tasks with UUID primary key.nn**Security Review**:n- No password or sensitive data exposed.n- Proper authorization actors: user, admin.nn**Logic Review**:n- Return type consistent (paginated list for PATCH search).n- HTTP method aligns with operation purpose (PATCH for search).nn**Schema Compliance**:n- Fields referenced exist in Prisma schema.n- Parameters correctly empty as path has no parameters.nn---nn### PATCH /proxmoxPaywall/admin/proxmox-tasks - indexn**Status**: PassnnSimilar review as above but authorizationActor admin.nn---nn### GET /proxmoxPaywall/user/proxmox-tasks/{proxmoxTaskId} - atn**Status**: Passnn**Prisma Schema Context**:nUses uuid parameter proxmoxTaskId matching table primary key.nn**Security Review**:n- No sensitive data leakage.n- Appropriate authorizationActors: user, adminnn**Logic Review**:n- Returning single item as expected with GET method.nn**Schema Compliance**:n- Parameter use and type appropriate.nn---nn### GET /proxmoxPaywall/admin/proxmox-tasks/{proxmoxTaskId} - atn**Status**: PassnnSame as above with admin authorizationActor.nn## Recommendationsnn### Immediate Actions Requiredn- Nonenn### Security Improvementsn- Nonenn### Logic Correctionsn- Nonenn## ConclusionnThe operations are well designed, correctly authorized, schema compliant, and ready for production use.",
+      "plan": "# Action Plan for API Operation Improvementsnn## Immediate Actions (Critical)nnNo changes required. All operations are valid.nn## Required Fixes (High)nnNone.nn## Recommended Improvements (Medium)nnNone.nn## Optional Enhancements (LOW)nnNone."
+    },
+    "content": [
+      {
+        "path": "/proxmoxPaywall/user/proxmox-tasks",
+        "method": "patch",
+        "description": "Retrieve a filtered and paginated list of Proxmox tasks from the system. This operation allows authenticated users to query and monitor various background tasks related to Proxmox VE operations.nnThe operation supports complex search, sorting, and pagination options, enabling efficient filtering of tasks by status, creation time, and task type.nnSecurity: Access is restricted to authenticated users who have permission to view Proxmox task statuses and logs. All task data corresponds directly to Proxmox internal task tracking mechanisms, providing real-time operational insight.nnThis operation integrates with the proxmox_paywall_proxmox_tasks Prisma model, reflecting the current schema design and field definitions.",
+        "parameters": [],
+        "requestBody": {
+          "description": "Search filter and pagination parameters for Proxmox task list retrieval",
+          "typeName": "IProxmoxPaywallProxmoxTask.IRequest"
+        },
+        "responseBody": {
+          "description": "Paginated list of Proxmox task summaries matching the search criteria",
+          "typeName": "IPageIProxmoxPaywallProxmoxTask.ISummary"
+        },
+        "authorizationType": null,
+        "authorizationActor": "user",
+        "name": "index",
+        "prerequisites": []
+      },
+      {
+        "path": "/proxmoxPaywall/admin/proxmox-tasks",
+        "method": "patch",
+        "description": "Retrieve a filtered and paginated list of Proxmox tasks from the system. This operation allows authenticated users to query and monitor various background tasks related to Proxmox VE operations.nnThe operation supports complex search, sorting, and pagination options, enabling efficient filtering of tasks by status, creation time, and task type.nnSecurity: Access is restricted to authenticated users who have permission to view Proxmox task statuses and logs. All task data corresponds directly to Proxmox internal task tracking mechanisms, providing real-time operational insight.nnThis operation integrates with the proxmox_paywall_proxmox_tasks Prisma model, reflecting the current schema design and field definitions.",
+        "parameters": [],
+        "requestBody": {
+          "description": "Search filter and pagination parameters for Proxmox task list retrieval",
+          "typeName": "IProxmoxPaywallProxmoxTask.IRequest"
+        },
+        "responseBody": {
+          "description": "Paginated list of Proxmox task summaries matching the search criteria",
+          "typeName": "IPageIProxmoxPaywallProxmoxTask.ISummary"
+        },
+        "authorizationType": null,
+        "authorizationActor": "admin",
+        "name": "index",
+        "prerequisites": []
+      },
+      {
+        "path": "/proxmoxPaywall/user/proxmox-tasks/{proxmoxTaskId}",
+        "method": "get",
+        "description": "Retrieve detailed information and status of a specific Proxmox task by its ID.nnThis read-only operation provides comprehensive details including task progress, status, errors, and related metadata.nnSecurity: Access restricted to authenticated users authorized to view task details.nnThis operation is directly mapped to the proxmox_paywall_proxmox_tasks Prisma model and uses the ID as the unique identifier for fetching the task record.",
+        "parameters": [
+          {
+            "name": "proxmoxTaskId",
+            "description": "Unique identifier of the Proxmox task",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "required": true
+          }
+        ],
+        "requestBody": null,
+        "responseBody": {
+          "description": "Detailed information of the specified Proxmox task",
+          "typeName": "IProxmoxPaywallProxmoxTask"
+        },
+        "authorizationType": null,
+        "authorizationActor": "user",
+        "name": "at",
+        "prerequisites": []
+      },
+      {
+        "path": "/proxmoxPaywall/admin/proxmox-tasks/{proxmoxTaskId}",
+        "method": "get",
+        "description": "Retrieve detailed information and status of a specific Proxmox task by its ID.nnThis read-only operation provides comprehensive details including task progress, status, errors, and related metadata.nnSecurity: Access restricted to authenticated users authorized to view task details.nnThis operation is directly mapped to the proxmox_paywall_proxmox_tasks Prisma model and uses the ID as the unique identifier for fetching the task record.",
+        "parameters": [
+          {
+            "name": "proxmoxTaskId",
+            "description": "Unique identifier of the Proxmox task",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "required": true
+          }
+        ],
+        "requestBody": null,
+        "responseBody": {
+          "description": "Detailed information of the specified Proxmox task",
+          "typeName": "IProxmoxPaywallProxmoxTask"
+        },
+        "authorizationType": null,
+        "authorizationActor": "admin",
+        "name": "at",
+        "prerequisites": []
+      }
+    ]
+  }
+}
